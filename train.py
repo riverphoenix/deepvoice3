@@ -161,8 +161,7 @@ def main():
                     gs = sess.run(g.global_step)
 
                     if epoch % config.summary_interval == 0:
-                        log('Writing summary at step: %d' % gs)
-                        summary_writer.add_summary(sess.run(g.merged),gs)
+                        summary_writer.add_summary(sess.run(g.merged),gs)s
 
                     if epoch % config.checkpoint_interval == 0:
                         log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
