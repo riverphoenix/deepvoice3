@@ -21,6 +21,51 @@ import librosa.display
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import random
+
+def create_write_files(x,mname,cdir,samples):
+    g = Graph(training=False);
+    with g.graph.as_default():
+        sv = tf.train.Supervisor()
+        with sv.managed_session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+            # Restore parameters
+            sv.saver.restore(sess, tf.train.latest_checkpoint(cdir))
+             
+            # Inference
+            mels = np.zeros((len(x), hp.T_y//hp.r, hp.n_mels*hp.r), np.float32)
+            prev_max_attentions = np.zeros((len(x),), np.int32)
+            for j in range(hp.T_x):
+                _mels, _max_attentions = sess.run([g.mels, g.max_attentions],
+                                                  {g.x: x,
+                                                   g.y1: mels,
+                                                   g.prev_max_attentions: prev_max_attentions})
+                mels[:, j, :] = _mels[:, j, :]
+                prev_max_attentions = _max_attentions[:, j]
+            mags = sess.run(g.mags, {g.mels: mels})
+
+    # Generate wav files
+    z_list = random.sample(range(0,hp.batch_size),samples)
+
+    for i, mag in enumerate(mags):
+        # generate wav files
+        if i in z_list:
+            mag = mag*hp.mag_std + hp.mag_mean # denormalize
+            audio = spectrogram2wav(np.exp(mag))
+            write(cdir + "/{}_{}.wav".format(mname, i), hp.sr, audio)
+
+def synthesize_part(grp,sess,config):
+
+    # config.train_samples
+    # config.test_samples
+
+    x_train = grp.origx
+    x_train = random.sample(x_train, hp.batch_size)
+    x_test = load_test_data()
+
+    gs = sess.run(grp.global_step)
+
+    create_write_files(x_train,"sample_"+str(gs)+"_train_",config.log_dir,config.train_samples)
+    create_write_files(x_test,"sample_"+str(gs)+"_test_",config.log_dir,config.test_samples)
 
 def synthesize():
     # Load graph

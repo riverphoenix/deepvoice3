@@ -55,15 +55,16 @@ class Hyperparams:
     converter_channels = 256 # == v
 
     # data
-    data = 'LJSpeech-1.0'
+    data = 'datasets/LJSpeech'
     max_duration = 10.10 # seconds
     T_x = 150 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, win_length, hop_length, r)) # Maximum length of sound (frames)
 
     # training scheme
     lr = 0.001
-    logdir = "logdir/trial4"
-    sampledir = 'samples/trial4'
+    logdir = "logs"
+    logname = 'demos'
+    sampledir = 'samples'
     batch_size = 16
     num_epochs = 10000
     max_grad_norm = 100.
@@ -71,6 +72,9 @@ class Hyperparams:
     num_samples = 32
     num_iterations = 500000
 
+    summary_interval = 1
+    test_interval = 2
+    checkpoint_interval = 1
 
-
-
+    train_iterations = 2
+    test_iterations = 2

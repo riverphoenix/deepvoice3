@@ -8,16 +8,20 @@ https://www.github.com/kyubyong/deepvoice3
 from __future__ import print_function
 
 from tqdm import tqdm
+import argparse
+import os
+from glob import glob
 
 from data_load import get_batch, load_vocab
 from hyperparams import Hyperparams as hp
 from modules import *
 from networks import encoder, decoder, converter
 import tensorflow as tf
-from utils import *
+from fn_utils import infolog
+import synthesize
 
 class Graph:
-    def __init__(self, training=True):
+    def __init__(self, config=None,training=True):
         # Load vocabulary
         self.char2idx, self.idx2char = load_vocab()
         self.graph = tf.Graph()
@@ -28,7 +32,7 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                self.x, self.y1, self.y2, self.z, self.num_batch = get_batch()
+                self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch(config)
                 self.prev_max_attentions = tf.constant([0]*hp.batch_size)
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
@@ -90,29 +94,88 @@ class Graph:
                 
                 self.merged = tf.summary.merge_all()
 
-if __name__ == '__main__':
-    g = Graph(); print("Training Graph loaded")
+def get_most_recent_checkpoint(checkpoint_dir):
+    checkpoint_paths = [path for path in glob("{}/*.ckpt-*.data-*".format(checkpoint_dir))]
+    idxes = [int(os.path.basename(path).split('-')[1].split('.')[0]) for path in checkpoint_paths]
+
+    max_idx = max(idxes)
+    lastest_checkpoint = os.path.join(checkpoint_dir, "model.ckpt-{}".format(max_idx))
+    print(" [*] Found lastest checkpoint: {}".format(lastest_checkpoint))
+    return lastest_checkpoint
+
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--log_dir', default=hp.logdir)
+    parser.add_argument('--log_name', default=hp.logname)
+    parser.add_argument('--sample_dir', default=hp.sampledir)
+    parser.add_argument('--data_paths', default=hp.data)
+    parser.add_argument('--load_path', default=None)
+    parser.add_argument('--initialize_path', default=None)
+
+    parser.add_argument('--summary_interval', type=int, default=hp.summary_interval)
+    parser.add_argument('--test_interval', type=int, default=hp.test_interval)
+    parser.add_argument('--checkpoint_interval', type=int, default=hp.checkpoint_interval)
+    parser.add_argument('--train_samples', type=int, default=hp.train_iterations)
+    parser.add_argument('--test_samples', type=int, default=hp.test_iterations)
+    parser.add_argument('--num_iterations', type=int, default=hp.num_iterations)
+
+    config = parser.parse_args()
+    
+    config.log_dir = config.log_dir + '/' + config.log_name
+    if not os.path.exists(config.log_dir): os.makedirs(config.log_dir)
+
+    log = infolog.log
+    log_path = os.path.join(config.log_dir, 'train.log')
+    infolog.init(log_path, "log")
+
+    checkpoint_path = os.path.join(config.log_dir, 'model.ckpt')
+
+    g = Graph(config=config);
+    print("Training Graph loaded")
+
     with g.graph.as_default():
-        sv = tf.train.Supervisor(logdir=hp.logdir, save_model_secs=0)
+        sv = tf.train.Supervisor(logdir=config.log_dir, save_model_secs=0)
         with sv.managed_session() as sess:
+
+            if config.load_path:
+                # Restore from a checkpoint if the user requested it.
+                restore_path = get_most_recent_checkpoint(config.load_path)
+                sv.saver.restore(sess, restore_path)
+                log('Resuming from checkpoint: %s ' % (restore_path), slack=True)
+            elif config.initialize_path:
+                restore_path = get_most_recent_checkpoint(config.initialize_path)
+                sv.saver.restore(sess, restore_path)
+                log('Initialized from checkpoint: %s ' % (restore_path), slack=True)
+            else:
+                log('Starting new training', slack=True)
+
+            summary_writer = tf.summary.FileWriter(config.log_dir, sess.graph)
+
             with open('temp.txt', 'w') as fout:
                 for epoch in range(1, 100000000):
                     if sv.should_stop(): break
                     for step in tqdm(range(g.num_batch), total=g.num_batch, ncols=70, leave=False, unit='b'):
                         sess.run(g.train_op)
 
-                    # Write checkpoint files at every epoch
                     gs = sess.run(g.global_step)
-                    sv.saver.save(sess, hp.logdir + '/model_epoch_%04d_gs_%d' % (epoch, gs))
 
-                    # plot alignments
-                    al = sess.run(g.alignments)
-                    plot_alignment(al[0].T, gs) # (T_x, T_y/r)
-                    print(al[0].T.argmax(0))
-                    fout.write("gs={}".format(gs))
-                    fout.write("alignment\n{}".format(al[0].T))
+                    if epoch % config.summary_interval == 0:
+                        log('Writing summary at step: %d' % gs)
+                        summary_writer.add_summary(sess.run(g.merged),gs)
+
+                    if epoch % config.checkpoint_interval == 0:
+                        log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
+                        sv.saver.save(sess, checkpoint_path, global_step=g.global_step)
+
+                    if epoch % config.test_interval == 0:
+                        log('Saving audio and alignment...')
+                        synthesize.synthesize_part(g,sess,config)
 
                     # break
-                    if gs > hp.num_iterations: break
+                    if gs > config.num_iterations: break
 
     print("Done")
+
+if __name__ == '__main__':
+    main()

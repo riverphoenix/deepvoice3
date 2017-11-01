@@ -10,7 +10,7 @@ import numpy as np
 import librosa
 import copy
 import matplotlib
-matplotlib.use('pdf')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from hyperparams import Hyperparams as hp

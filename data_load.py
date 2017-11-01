@@ -31,24 +31,25 @@ def load_vocab():
     idx2char = {idx: char for idx, char in enumerate(vocab)}
     return char2idx, idx2char
 
-def load_train_data():
+def load_train_data(config):
     # Load vocabulary
     char2idx, idx2char = load_vocab()
 
     # Parse
-    texts, mels, dones, mags = [], [], [], []
-    metadata = os.path.join(hp.data, 'metadata.csv')
+    texts, texts_test, mels, dones, mags = [], [], [], [], []
+    metadata = os.path.join(config.data_paths, 'metadata.csv')
     for line in codecs.open(metadata, 'r', 'utf-8'):
         fname, _, sent = line.strip().split("|")
         sent = text_normalize(sent) + "E" # text normalization, E: EOS
         if len(sent) <= hp.T_x:
             sent += "P"*(hp.T_x-len(sent))
             texts.append(np.array([char2idx[char] for char in sent], np.int32).tostring())
+            texts_test.append([char2idx[char] for char in sent])
             mels.append(os.path.join(hp.data, "mels", fname + ".npy"))
             dones.append(os.path.join(hp.data, "dones", fname + ".npy"))
             mags.append(os.path.join(hp.data, "mags", fname + ".npy"))
-
-    return texts, mels, dones, mags
+    texts_test = np.array(texts_test, np.int32)
+    return texts, texts_test, mels, dones, mags
 
 def load_test_data():
     # Load vocabulary
@@ -64,11 +65,11 @@ def load_test_data():
     texts = np.array(texts, np.int32)
     return texts
 
-def get_batch():
+def get_batch(config):
     """Loads training data and put them in queues"""
     with tf.device('/cpu:0'):
         # Load data
-        _texts, _mels, _dones, _mags = load_train_data() # bytes
+        _texts, _texts_test, _mels, _dones, _mags = load_train_data(config) # bytes
 
         # Calc total batch count
         num_batch = len(_texts) // hp.batch_size
@@ -96,4 +97,4 @@ def get_batch():
                                 capacity=hp.batch_size*32,   
                                 dynamic_pad=False)
 
-    return texts, mels, dones, mags, num_batch
+    return _texts_test, texts, mels, dones, mags, num_batch
