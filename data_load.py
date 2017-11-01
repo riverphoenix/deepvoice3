@@ -45,9 +45,9 @@ def load_train_data(config):
             sent += "P"*(hp.T_x-len(sent))
             texts.append(np.array([char2idx[char] for char in sent], np.int32).tostring())
             texts_test.append([char2idx[char] for char in sent])
-            mels.append(os.path.join(hp.data, "mels", fname + ".npy"))
-            dones.append(os.path.join(hp.data, "dones", fname + ".npy"))
-            mags.append(os.path.join(hp.data, "mags", fname + ".npy"))
+            mels.append(os.path.join(config.data_paths, "mels", fname + ".npy"))
+            dones.append(os.path.join(config.data_paths, "dones", fname + ".npy"))
+            mags.append(os.path.join(config.data_paths, "mags", fname + ".npy"))
     texts_test = np.array(texts_test, np.int32)
     return texts, texts_test, mels, dones, mags
 

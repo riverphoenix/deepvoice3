@@ -91,7 +91,7 @@ class Graph:
                 tf.summary.scalar('loss1_mae', self.loss1_mae)
                 tf.summary.scalar('loss1_ce', self.loss1_ce)
                 tf.summary.scalar('loss2', self.loss2)
-                
+              
                 self.merged = tf.summary.merge_all()
 
 def get_most_recent_checkpoint(checkpoint_dir):
@@ -155,13 +155,15 @@ def main():
             with open('temp.txt', 'w') as fout:
                 for epoch in range(1, 100000000):
                     if sv.should_stop(): break
-                    for step in tqdm(range(g.num_batch), total=g.num_batch, ncols=70, leave=False, unit='b'):
-                        sess.run(g.train_op)
+                    for step in range(g.num_batch):
+                        loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
+                        print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
 
                     gs = sess.run(g.global_step)
+                    print("Global Step %04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(gs,loss,loss1_mae,loss1_ce,loss2))
 
                     if epoch % config.summary_interval == 0:
-                        summary_writer.add_summary(sess.run(g.merged),gs)s
+                        summary_writer.add_summary(sess.run(g.merged),gs)
 
                     if epoch % config.checkpoint_interval == 0:
                         log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))

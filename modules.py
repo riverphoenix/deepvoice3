@@ -178,7 +178,7 @@ def glu(inputs):
     Returns:
       outputs: A tensor of the same shape and dtype as inputs.
     '''
-    A, B = tf.split(inputs, 2, -1)  # (N, T_x, c) * 2
+    A, B = tf.split(inputs, 2, 2)  # (N, T_x, c) * 2
     outputs = A*tf.nn.sigmoid(B)
     return outputs
 
