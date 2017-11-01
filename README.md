@@ -1,5 +1,7 @@
 # Deep Voice 3
 
+## Fork of https://github.com/Kyubyong/deepvoice3 implementation
+
 ## **Work In Progress**
 
 This is a tensorflow implementation of [DEEP VOICE 3: 2000-SPEAKER NEURAL TEXT-TO-SPEECH](https://arxiv.org/pdf/1710.07654.pdf). For now I'm focusing on single speaker synthesis.
