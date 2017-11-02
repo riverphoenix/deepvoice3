@@ -24,14 +24,7 @@ import matplotlib.pyplot as plt
 import random
 
 def create_write_files(sess,g,x,mname,cdir,samples):
-    # g = Graph(training=False);
-    # with g.graph.as_default():
-    #     sv = tf.train.Supervisor()
-    #     with sv.managed_session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-    #         # Restore parameters
-    #         sv.saver.restore(sess, tf.train.latest_checkpoint(cdir))
-             
-            # Inference
+    # Inference
     mels = np.zeros((len(x), hp.T_y//hp.r, hp.n_mels*hp.r), np.float32)
     prev_max_attentions = np.zeros((len(x),), np.int32)
     for j in range(hp.T_x):
@@ -50,26 +43,22 @@ def create_write_files(sess,g,x,mname,cdir,samples):
         # generate wav files
         if i in z_list:
             mag = mag*hp.mag_std + hp.mag_mean # denormalize
-            audio = spectrogram2wav(np.exp(mag))
+            audio = spectrogram2wav(np.power(10, mag))
             write(cdir + "/{}_{}.wav".format(mname, i), hp.sr, audio)
 
-def synthesize_part(grp,sess,config):
+def synthesize_part(grp,config,gs,x_train):
 
-    x_train = grp.origx
     x_train = random.sample(x_train, hp.batch_size)
     x_test = load_test_data()
 
-    gs = sess.run(grp.global_step)
-
-    g = Graph(training=False);
-    with g.graph.as_default():
-        sv = tf.train.Supervisor()
+    with grp.graph.as_default():
+        sv = tf.train.Supervisor(logdir=config.log_dir)
         with sv.managed_session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
             # Restore parameters
             sv.saver.restore(sess, tf.train.latest_checkpoint(config.log_dir))
 
-            create_write_files(sess,g,x_train,"sample_"+str(gs)+"_train_",config.log_dir,config.train_samples)
-            create_write_files(sess,g,x_test,"sample_"+str(gs)+"_test_",config.log_dir,config.test_samples)
+            create_write_files(sess,grp,x_train,"sample_"+str(gs)+"_train_",config.log_dir,config.train_samples)
+            create_write_files(sess,grp,x_test,"sample_"+str(gs)+"_test_",config.log_dir,config.test_samples)
 
             sess.close()
 
@@ -112,7 +101,7 @@ def synthesize():
     for i, mag in enumerate(mags):
         # generate wav files
         mag = mag*hp.mag_std + hp.mag_mean # denormalize
-        audio = spectrogram2wav(np.exp(mag))
+        audio = spectrogram2wav(np.power(10, mag))
         write(hp.sampledir + "/{}_{}.wav".format(mname, i), hp.sr, audio)
                                           
 if __name__ == '__main__':

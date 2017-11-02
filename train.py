@@ -125,14 +125,15 @@ def main():
     config.log_dir = config.log_dir + '/' + config.log_name
     if not os.path.exists(config.log_dir): os.makedirs(config.log_dir)
 
-    log = infolog.log
-    log_path = os.path.join(config.log_dir, 'train.log')
+    log_path = os.path.join(config.log_dir+'/', 'train.log')
     infolog.init(log_path, "log")
 
     checkpoint_path = os.path.join(config.log_dir, 'model.ckpt')
 
     g = Graph(config=config);
     print("Training Graph loaded")
+    g2 = Graph(training=False);
+    print("Testing Graph loaded")
 
     with g.graph.as_default():
         sv = tf.train.Supervisor(logdir=config.log_dir, save_model_secs=0)
@@ -142,36 +143,42 @@ def main():
                 # Restore from a checkpoint if the user requested it.
                 restore_path = get_most_recent_checkpoint(config.load_path)
                 sv.saver.restore(sess, restore_path)
-                log('Resuming from checkpoint: %s ' % (restore_path), slack=True)
+                infolog.log('Resuming from checkpoint: %s ' % (restore_path), slack=True)
             elif config.initialize_path:
                 restore_path = get_most_recent_checkpoint(config.initialize_path)
                 sv.saver.restore(sess, restore_path)
-                log('Initialized from checkpoint: %s ' % (restore_path), slack=True)
+                infolog.log('Initialized from checkpoint: %s ' % (restore_path), slack=True)
             else:
-                log('Starting new training', slack=True)
+                infolog.log('Starting new training', slack=True)
 
             summary_writer = tf.summary.FileWriter(config.log_dir, sess.graph)
 
             with open('temp.txt', 'w') as fout:
                 for epoch in range(1, 100000000):
                     if sv.should_stop(): break
+                    losses = [0,0,0,0]
                     for step in range(g.num_batch):
                         loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
+                        loss_one = [loss,loss1_mae,loss1_ce,loss2]
+                        losses = [x + y for x, y in zip(losses, loss_one)]
                         print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
 
                     gs = sess.run(g.global_step)
-                    print("Global Step %04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(gs,loss,loss1_mae,loss1_ce,loss2))
+                    losses = [x / g.num_batch for x in losses]
+                    print("###############################################################################")
+                    infolog.log("Global Step %04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(gs,losses[0],losses[1],losses[2],losses[3]))
+                    print("###############################################################################")
 
                     if epoch % config.summary_interval == 0:
                         summary_writer.add_summary(sess.run(g.merged),gs)
 
                     if epoch % config.checkpoint_interval == 0:
-                        log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
+                        infolog.log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
                         sv.saver.save(sess, checkpoint_path, global_step=g.global_step)
 
                     if epoch % config.test_interval == 0:
-                        log('Saving audio and alignment...')
-                        synthesize.synthesize_part(g,sess,config)
+                        infolog.log('Saving audio and alignment...')
+                        synthesize.synthesize_part(g2,config,gs,g.origx)
 
                     # break
                     if gs > config.num_iterations: break
