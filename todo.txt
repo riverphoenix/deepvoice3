@@ -1,0 +1,1 @@
+- Add text of train file in the log to be able to understand success better
