@@ -1,1 +1,11 @@
 - Add text of train file in the log to be able to understand success better
+
+- Preprocess
+-- Mixed Phoneme model using Gentle
+-- All capital
+-- remove punctuation
+-- end with . or ?
+-- add empty at the end
+-- Text and phonemes in words with 0.9 chance
+-- spaces between words (4 different lengths)
+
