@@ -1,5 +1,6 @@
-- Add text of train file in the log to be able to understand success better
+- Add the graph in the print (fix)
 
+#######################################################
 - Preprocess
 -- Mixed Phoneme model using Gentle
 -- All capital
@@ -9,3 +10,23 @@
 -- Text and phonemes in words with 0.9 chance
 -- spaces between words (4 different lengths)
 
+
+#######################################################
+- Dropout in all the conv_blocks (in the definition)
+-- Dropout on the encoder conv_block
+-- Dropout on the decoder conv_block
+- Remove normalization from FC blocks in encoders 
+- Remove normalization from FC in start of decoder
+
+- Perhaps add normalization to outputs of attention (to mel and done FC layers)
+- Square root multiplication of attentionblock+conv in decoder (similar to encoder)
+
+- Remove normalize before converter
+- Enable the positional encoding
+- Perhaps remove normalization inside the attention block at last step (last FC)
+
+- Converter take input not the mels but instead the outputs of attention ('inputs' on that component)
+
+- Perhaps remove mel/mag std/mean in prepo and also on synth
+- On synth again use output of decoder hidden layer instead of mel
+- Why use in synth two runs to get the mag?? try one run

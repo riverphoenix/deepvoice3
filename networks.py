@@ -32,7 +32,7 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
         tensor = fc_block(embedding,
                           num_units=hp.enc_channels,
                           dropout_rate=0,
-                          norm_type=hp.norm_type,
+                          norm_type=hp.norm_type,    #perhaps don't need normalization
                           activation_fn=tf.nn.relu,
                           training=training,
                           scope="prenet_fc_block") # (N, T_x, c)
@@ -41,7 +41,7 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
         for i in range(hp.enc_layers):
             tensor = conv_block(tensor,
                                 size=hp.enc_filter_size,
-                                dropout_rate=0,
+                                dropout_rate=0,     #perhaps add dropout here
                                 norm_type=hp.norm_type,
                                 activation_fn=glu,
                                 training=training,
@@ -51,7 +51,7 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
         keys = fc_block(tensor,
                         num_units=hp.embed_size,
                         dropout_rate=0,
-                        norm_type=hp.norm_type,
+                        norm_type=hp.norm_type,    #perhaps don't need normalization
                         activation_fn=tf.nn.relu,
                         training=training,
                         scope="postnet_fc_block") # (N, T_x, E)
@@ -86,7 +86,7 @@ def decoder(inputs,
             inputs = fc_block(inputs,
                               num_units=hp.dec_channels,
                               dropout_rate=0 if i==0 else hp.dropout_rate,
-                              norm_type=hp.norm_type,
+                              norm_type=hp.norm_type,  #perhaps don't need normalization
                               activation_fn=tf.nn.relu,
                               training=training,
                               scope="prenet_fc_block_{}".format(i))
@@ -95,7 +95,7 @@ def decoder(inputs,
             # Causal Convolution Block. queries: (N, T_y/r, d)
             queries = conv_block(inputs,
                                  size=hp.dec_filter_size,
-                                 dropout_rate=0,
+                                 dropout_rate=0,    #perhaps add the dropout
                                  padding="CAUSAL",
                                  norm_type=hp.norm_type,
                                  activation_fn=glu,
@@ -117,22 +117,24 @@ def decoder(inputs,
 
             inputs = tensor + queries
 
+            # missing the sqrt multiplication of this
+
         # Readout layers
         mels = fc_block(inputs,
                         num_units=hp.n_mels*hp.r,
                         dropout_rate=0,
-                        norm_type=None,
+                        norm_type=None,      # perhaps add normalization
                         activation_fn=None,
                         training=training,
                         scope="mels")  # (N, T_y/r, n_mels*r)
         dones = fc_block(inputs,
                          num_units=2,
                          dropout_rate=0,
-                         norm_type=None,
+                         norm_type=None,      # perhaps add normalization
                          activation_fn=None,
                          training=training,
                          scope="dones")  # (N, T_y/r, 2)
-    return mels, dones, alignments, max_attentions
+    return mels, dones, alignments, max_attentions  #perhaps return inputs too
 
 def converter(inputs, training=True, scope="decoder2", reuse=None):
     '''Decoder Post-processing net = CBHG
@@ -151,7 +153,7 @@ def converter(inputs, training=True, scope="decoder2", reuse=None):
         for i in range(hp.converter_layers):
             inputs = conv_block(inputs,
                                  size=hp.converter_filter_size,
-                                 dropout_rate=0,
+                                 dropout_rate=0,   # perhaps add dropout
                                  padding="SAME",
                                  norm_type=hp.norm_type,
                                  activation_fn=glu,

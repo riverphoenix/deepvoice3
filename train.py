@@ -62,8 +62,10 @@ class Graph:
                 self.mel_inputs = tf.reshape(self.mels, (hp.batch_size, hp.T_y, hp.n_mels))
                 self.mel_inputs = normalize(self.mel_inputs, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
 
+                #why normalize before converter?
+
                 # Converter. mags: (N, T_y//r, (1+n_fft//2)*r)
-                self.mags = converter(self.mel_inputs,
+                self.mags = converter(self.mel_inputs,  #perhaps use inputs instead of mel_inputs
                                           training=training,
                                           scope="converter",
                                           reuse=None)
@@ -153,35 +155,34 @@ def main():
 
             summary_writer = tf.summary.FileWriter(config.log_dir, sess.graph)
 
-            with open('temp.txt', 'w') as fout:
-                for epoch in range(1, 100000000):
-                    if sv.should_stop(): break
-                    losses = [0,0,0,0]
-                    for step in range(g.num_batch):
-                        loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
-                        loss_one = [loss,loss1_mae,loss1_ce,loss2]
-                        losses = [x + y for x, y in zip(losses, loss_one)]
-                        print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
+            for epoch in range(1, 100000000):
+                if sv.should_stop(): break
+                losses = [0,0,0,0]
+                for step in range(g.num_batch):
+                    loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
+                    loss_one = [loss,loss1_mae,loss1_ce,loss2]
+                    losses = [x + y for x, y in zip(losses, loss_one)]
+                    print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
+                    print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
+                gs = sess.run(g.global_step)
+                losses = [x / g.num_batch for x in losses]
+                print("###############################################################################")
+                infolog.log("Global Step %04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(gs,losses[0],losses[1],losses[2],losses[3]))
+                print("###############################################################################")
 
-                    gs = sess.run(g.global_step)
-                    losses = [x / g.num_batch for x in losses]
-                    print("###############################################################################")
-                    infolog.log("Global Step %04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(gs,losses[0],losses[1],losses[2],losses[3]))
-                    print("###############################################################################")
+                if epoch % config.summary_interval == 0:
+                    summary_writer.add_summary(sess.run(g.merged),gs)
 
-                    if epoch % config.summary_interval == 0:
-                        summary_writer.add_summary(sess.run(g.merged),gs)
+                if epoch % config.checkpoint_interval == 0:
+                    infolog.log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
+                    sv.saver.save(sess, checkpoint_path, global_step=g.global_step)
 
-                    if epoch % config.checkpoint_interval == 0:
-                        infolog.log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
-                        sv.saver.save(sess, checkpoint_path, global_step=g.global_step)
+                if epoch % config.test_interval == 0:
+                    infolog.log('Saving audio and alignment...')
+                    synthesize.synthesize_part(g2,config,gs,g.origx)
 
-                    if epoch % config.test_interval == 0:
-                        infolog.log('Saving audio and alignment...')
-                        synthesize.synthesize_part(g2,config,gs,g.origx)
-
-                    # break
-                    if gs > config.num_iterations: break
+                # break
+                if gs > config.num_iterations: break
 
     print("Done")
 

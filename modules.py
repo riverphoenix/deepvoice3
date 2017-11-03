@@ -405,7 +405,7 @@ def attention_block(queries,
         tensor = fc_block(tensor,
                           num_units=hp.dec_channels,
                           dropout_rate=0,
-                          norm_type=norm_type,
+                          norm_type=norm_type,   #perhaps remove normalization
                           training=training,
                           activation_fn=activation_fn,
                           scope="tensor_fc_block")  # (N, T_x, dec_channels)
