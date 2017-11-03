@@ -37,11 +37,8 @@ class Hyperparams:
     norm_type = "bn" # TODO: weight normalization
     r = 4 # Reduction factor
     dropout_rate = .05
-    sinusoid = True
-    share_weights = True
-    key_masking = False
     ## Enocder
-    vocab_size = 30 # [PE a-z']
+    vocab_size = 32 # [PE a-z'.?]
     embed_size = 256 # == e
     enc_layers = 7
     enc_filter_size = 5
@@ -70,7 +67,6 @@ class Hyperparams:
     batch_size = 16
     max_grad_norm = 100.
     max_grad_val = 5.
-    num_samples = 32
     num_iterations = 500000
 
     summary_interval = 1

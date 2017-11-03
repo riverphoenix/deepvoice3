@@ -17,6 +17,7 @@ import os
 import unicodedata
 
 def text_normalize(sent):
+    '''Remove accents and lower strings.'''
     def _strip_accents(s):
         return ''.join(c for c in unicodedata.normalize('NFD', s)
                        if unicodedata.category(c) != 'Mn')

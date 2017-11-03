@@ -12,7 +12,7 @@ import tensorflow as tf
 import numpy as np
 
 
-def embed(inputs, vocab_size, num_units, zero_pad=True, scope="embedding", reuse=None):
+def embed(inputs, vocab_size, num_units, zero_pad=False, scope="embedding", reuse=None):
     '''Embeds a given tensor. 
     
     Args:
@@ -34,14 +34,14 @@ def embed(inputs, vocab_size, num_units, zero_pad=True, scope="embedding", reuse
         lookup_table = tf.get_variable('lookup_table', 
                                        dtype=tf.float32, 
                                        shape=[vocab_size, num_units],
-                                       initializer=tf.contrib.layers.xavier_initializer())
+                                       initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
         if zero_pad:
             lookup_table = tf.concat((tf.zeros(shape=[1, num_units]), 
                                       lookup_table[1:, :]), 0)
 
         outputs = tf.nn.embedding_lookup(lookup_table, inputs)
 
-    return tf.nn.embedding_lookup(lookup_table, inputs)   
+    return outputs
  
 def normalize(inputs, 
               type="bn",
@@ -167,8 +167,9 @@ def conv1d(inputs,
             filters = inputs.get_shape().as_list[-1]
         
         params = {"inputs":inputs, "filters":filters, "kernel_size":size,
-                "dilation_rate":rate, "padding":padding, "activation":activation_fn, 
-                "use_bias":use_bias, "reuse":reuse, "kernel_initializer":tf.contrib.layers.xavier_initializer()}
+                  "dilation_rate":rate, "padding":padding, "activation":activation_fn,
+                  "use_bias":use_bias, "reuse":reuse,
+                  "kernel_initializer":tf.contrib.layers.variance_scaling_initializer(factor=4.)}
         
         outputs = tf.layers.conv1d(**params)
     return outputs
@@ -248,7 +249,10 @@ def fc_block(inputs,
         inputs = tf.layers.dropout(inputs, rate=dropout_rate, training=training)
 
         # Transformation
-        tensor = tf.layers.dense(inputs, units=num_units, activation=None)  # (N, T_x, c1)
+        tensor = tf.layers.dense(inputs,
+                                 units=num_units,
+                                 activation=None,
+                                 kernel_initializer=tf.contrib.layers.variance_scaling_initializer(factor=1.-dropout_rate))  # (N, T_x, c1)
 
         # Normalization -> Activation
         tensor = normalize(tensor, type=norm_type, training=training, activation_fn=activation_fn)
@@ -336,77 +340,45 @@ def attention_block(queries,
     '''
     _keys = keys
     with tf.variable_scope(scope, reuse=reuse):
-        if hp.sinusoid:
-            queries += positional_encoding(queries[:, :, 0],
-                                          num_units=hp.embed_size,
-                                          position_rate=1.,
-                                          zero_pad=False,
-                                          scale=True)  # (N, T_y/r, e)
-            keys += positional_encoding(keys[:, :, 0],
-                                        num_units=hp.embed_size,
-                                        position_rate=(hp.T_y//hp.r)/hp.T_x,
-                                        zero_pad=False,
-                                        scale=True)  # (N, T_x, e)
-        else:
-            queries += embed(tf.tile(tf.expand_dims(tf.range(hp.T_y//hp.r), 0), [hp.batch_size, 1]),
-                                  vocab_size=hp.T_y//hp.r,
-                                  num_units=hp.embed_size,
-                                  zero_pad=False,
-                                  scope="query_pe")
+        queries += positional_encoding(queries[:, :, 0],
+                                      num_units=hp.embed_size,
+                                      position_rate=1.,
+                                      zero_pad=False,
+                                      scale=True)  # (N, T_y/r, e)
+        keys += positional_encoding(keys[:, :, 0],
+                                    num_units=hp.embed_size,
+                                    position_rate=(hp.T_y//hp.r)/hp.T_x,
+                                    zero_pad=False,
+                                    scale=True)  # (N, T_x, e)
 
-            keys += embed(tf.tile(tf.expand_dims(tf.range(hp.T_x), 0), [hp.batch_size, 1]),
-                                  vocab_size=hp.T_x,
-                                  num_units=hp.embed_size,
-                                  zero_pad=False,
-                                  scope="key_pe")
+        # Query Projection
+        with tf.variable_scope("query_proj"):
+            W1 = tf.get_variable("W1", shape=(queries.get_shape()[0], queries.get_shape()[-1], num_units),
+                                 initializer=tf.contrib.layers.variance_scaling_initializer(factor=1.))
+            b1 = tf.get_variable("b1", shape=(num_units), initializer=tf.zeros_initializer())
+            queries = tf.matmul(queries, W1) + b1
+            queries = normalize(queries, type=norm_type, training=training, activation_fn=activation_fn)
 
-        if not hp.share_weights: # same initialization
-            # Query Projection
-            with tf.variable_scope("query_proj"):
-                W1 = tf.get_variable("W1", shape=(queries.get_shape()[0], queries.get_shape()[-1], num_units), initializer=tf.contrib.layers.xavier_initializer())
-                b1 = tf.get_variable("b1", shape=(num_units), initializer=tf.zeros_initializer())
-                queries = tf.matmul(queries, W1) + b1
-                queries = normalize(queries, type=norm_type, training=training, activation_fn=activation_fn)
+        # Key Projection
+        with tf.variable_scope("key_proj"):
+            W2 = tf.get_variable("W2", initializer=W1.initialized_value())
+            b2 = tf.get_variable("b2", shape=(num_units), initializer=tf.zeros_initializer())
+            keys = tf.matmul(keys, W2) + b2
+            keys = normalize(keys, type=norm_type, training=training, activation_fn=activation_fn)
 
-            # Key Projection
-            with tf.variable_scope("key_proj"):
-                W2 = tf.get_variable("W2", initializer=W1.initialized_value())
-                b2 = tf.get_variable("b2", shape=(num_units), initializer=tf.zeros_initializer())
-                keys = tf.matmul(keys, W2) + b2
-                keys = normalize(keys, type=norm_type, training=training, activation_fn=activation_fn)
-
-        else:
-            queries = fc_block(queries,
-                               num_units=num_units,
-                               dropout_rate=0,
-                               norm_type=norm_type,
-                               training=training,
-                               activation_fn=activation_fn,
-                               scope="queries_fc_block")  # (N, T_y/r, a)
-            keys = fc_block(keys,
-                            num_units=num_units,
-                            dropout_rate=0,
-                            norm_type=norm_type,
-                            training=training,
-                            activation_fn=activation_fn,
-                            scope="queries_fc_block",
-                            reuse=True)  # (N, T_x, a)
+        # Value Projection
+        with tf.variable_scope("val_proj"):
         vals = fc_block(vals,
                         num_units=num_units,
                         dropout_rate=0,
                         norm_type=norm_type,
                         training=training,
-                        activation_fn=activation_fn,
-                        scope="vals_fc_block")  # (N, T_x, a)
+                        activation_fn=activation_fn) # (N, T_x, a)
 
         attention_weights = tf.matmul(queries, keys, transpose_b=True)  # (N, T_y/r, T_x)
 
         _, Ty, Tx = attention_weights.get_shape().as_list()  # Ty=T_y/r, Tx = T_x
         paddings = tf.ones_like(attention_weights) * (-2 ** 32 + 1)  # (N, T_y/r, T_x)
-        if hp.key_masking:
-            # Key Masking
-            key_masks = tf.tile(tf.expand_dims(masks, 1), [1, Ty, 1])  # (N, T_y/r, T_x)
-            attention_weights = tf.where(tf.equal(key_masks, 0), paddings, attention_weights)  # (N, T_y/r, T_x)
 
         if training:
             alignments = tf.nn.softmax(attention_weights)
