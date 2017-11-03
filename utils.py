@@ -24,8 +24,7 @@ def spectrogram2wav(spectrogram):
     X_best = copy.deepcopy(spectrogram)  # [f, t]
     for i in range(hp.n_iter):
         X_t = invert_spectrogram(X_best)
-        X_t[X_t == -inf] = 0
-        X_t[X_t == inf] = 0
+        X_t = np.nan_to_num(X_t)
         est = librosa.stft(X_t, hp.n_fft, hp.hop_length, win_length=hp.win_length)  # [f, t]
         phase = est / np.maximum(1e-8, np.abs(est))  # [f, t]
         X_best = spectrogram * phase  # [f, t]

@@ -51,7 +51,7 @@ class Graph:
                                                scope="encoder")
 
                 # Decoder. mels: (N, T_y/r, n_mels*r), dones: (N, T_y/r, 2), alignments: (N, T_y, T_x)
-                self.mels, self.dones, self.alignments, self.max_attentions = decoder(self.decoder_inputs,
+                self.decoder_outputs, self.mels, self.dones, self.alignments, self.max_attentions = decoder(self.decoder_inputs,
                                                                                      self.keys,
                                                                                      self.vals,
                                                                                      self.masks,
@@ -66,7 +66,8 @@ class Graph:
                 #why normalize before converter?
 
                 # Converter. mags: (N, T_y//r, (1+n_fft//2)*r)
-                self.mags = converter(self.mel_inputs,  #perhaps use inputs instead of mel_inputs
+                #self.mags = converter(self.mel_inputs,  #perhaps use inputs instead of mel_inputs
+                self.mags = converter(self.decoder_outputs,  #perhaps use inputs instead of mel_inputs
                                           training=training,
                                           scope="converter",
                                           reuse=None)
@@ -87,8 +88,8 @@ class Graph:
                 self.gvs = self.optimizer.compute_gradients(self.loss)
                 self.clipped = []
                 for grad, var in self.gvs:
-                    grad = tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
-                    grad = tf.clip_by_norm(grad, hp.max_grad_norm)
+                    grad = grad if grad is None else tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
+                    grad = grad if grad is None else tf.clip_by_norm(grad, hp.max_grad_norm)
                     self.clipped.append((grad, var))
                 self.train_op = self.optimizer.apply_gradients(self.clipped, global_step=self.global_step)
                    
@@ -166,7 +167,7 @@ def main():
                     loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
-                    print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
+                    # print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
                     print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
                 gs = sess.run(g.global_step)
                 losses = [x / g.num_batch for x in losses]

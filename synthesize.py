@@ -25,16 +25,19 @@ import random
 
 def create_write_files(sess,g,x,mname,cdir,samples):
     # Inference
+    decoder_outputs = np.zeros((len(x), hp.T_y//hp.r, hp.attention_size), np.float32) # added decoder_outputs
     mels = np.zeros((len(x), hp.T_y//hp.r, hp.n_mels*hp.r), np.float32)
     prev_max_attentions = np.zeros((len(x),), np.int32)
     for j in range(hp.T_x):
-        _mels, _max_attentions = sess.run([g.mels, g.max_attentions],
+        # Added decoder_outputs
+        _decoder_outputs,_mels, _max_attentions = sess.run([g.decoder_outputs,g.mels, g.max_attentions],
                                           {g.x: x,
                                            g.y1: mels,
                                            g.prev_max_attentions: prev_max_attentions})
+        decoder_outputs[:, j, :] = _decoder_outputs[:, j, :] #decoder_outputs
         mels[:, j, :] = _mels[:, j, :]
         prev_max_attentions = _max_attentions[:, j]
-    mags = sess.run(g.mags, {g.mels: mels})
+    mags = sess.run(g.mags, {g.decoder_outputs: decoder_outputs}) # changed from mels to decoder_outputs
 
     # Generate wav files
     z_list = random.sample(range(0,hp.batch_size),samples)

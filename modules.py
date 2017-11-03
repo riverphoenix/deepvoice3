@@ -368,12 +368,12 @@ def attention_block(queries,
 
         # Value Projection
         with tf.variable_scope("val_proj"):
-        vals = fc_block(vals,
-                        num_units=num_units,
-                        dropout_rate=0,
-                        norm_type=norm_type,
-                        training=training,
-                        activation_fn=activation_fn) # (N, T_x, a)
+          vals = fc_block(vals,
+            num_units=num_units,
+            dropout_rate=0,
+            norm_type=norm_type,
+            training=training,
+            activation_fn=activation_fn) # (N, T_x, a)
 
         attention_weights = tf.matmul(queries, keys, transpose_b=True)  # (N, T_y/r, T_x)
 

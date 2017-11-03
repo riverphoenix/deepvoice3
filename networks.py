@@ -115,9 +115,10 @@ def decoder(inputs,
                                                                  training=training,
                                                                  scope="attention_block_{}".format(i))
 
-            inputs = tensor + queries
+            # inputs = tensor + queries
+            inputs = tf.sqrt(0.5) * (tensor + queries) # (N, T_x, E) # missing the sqrt multiplication of this
 
-            # missing the sqrt multiplication of this
+            
 
         # Readout layers
         mels = fc_block(inputs,
@@ -134,7 +135,7 @@ def decoder(inputs,
                          activation_fn=None,
                          training=training,
                          scope="dones")  # (N, T_y/r, 2)
-    return mels, dones, alignments, max_attentions  #perhaps return inputs too
+    return inputs, mels, dones, alignments, max_attentions  #perhaps return inputs too
 
 def converter(inputs, training=True, scope="decoder2", reuse=None):
     '''Decoder Post-processing net = CBHG
@@ -161,12 +162,31 @@ def converter(inputs, training=True, scope="decoder2", reuse=None):
                                  scope="converter_conv_block_{}".format(i))  # (N, T_y/r, d)
 
         # Readout layer
+        # mag = fc_block(inputs,
+        #                num_units=hp.n_fft//2+1,
+        #                dropout_rate=0,
+        #                norm_type=None,
+        #                activation_fn=None,
+        #                training=training,
+        #                scope="mag")  # (N, T_y/r, 2)
+
+        # Added two for mags instead
         mag = fc_block(inputs,
+                       num_units=hp.n_mels*hp.r,
+                       dropout_rate=0,
+                       norm_type=None,
+                       activation_fn=None,
+                       training=training,
+                       scope="mag1")  # (N, T_y/r, 2)
+
+        mag = tf.reshape(mag, (hp.batch_size, hp.T_y, hp.n_mels))
+
+        mag = fc_block(mag,
                        num_units=hp.n_fft//2+1,
                        dropout_rate=0,
                        norm_type=None,
                        activation_fn=None,
                        training=training,
-                       scope="mag")  # (N, T_y/r, 2)
+                       scope="mag2")  # (N, T_y/r, 2)
 
     return mag

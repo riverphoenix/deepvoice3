@@ -1,5 +1,3 @@
-- Add the graph in the print (fix)
-
 #######################################################
 - Preprocess
 -- Mixed Phoneme model using Gentle
