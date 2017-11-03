@@ -19,6 +19,7 @@ from networks import encoder, decoder, converter
 import tensorflow as tf
 from fn_utils import infolog
 import synthesize
+from utils import *
 
 class Graph:
     def __init__(self, config=None,training=True):
@@ -78,7 +79,10 @@ class Graph:
 
                 # Training Scheme
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                self.optimizer = tf.train.AdamOptimizer(learning_rate=hp.lr)
+                if hp.optim == "adam":
+                    self.optimizer = tf.train.AdamOptimizer(learning_rate=hp.lr)
+                else:
+                    self.optimizer = tf.train.RMSPropOptimizer(learning_rate=hp.lr)
                 ## gradient clipping
                 self.gvs = self.optimizer.compute_gradients(self.loss)
                 self.clipped = []
