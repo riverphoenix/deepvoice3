@@ -61,7 +61,7 @@ class Graph:
                                                                                      reuse=None)
                 # Restore shape. mel_inputs: (N, T_y, n_mels)
                 self.mel_inputs = tf.reshape(self.mels, (hp.batch_size, hp.T_y, hp.n_mels))
-                self.mel_inputs = normalize(self.mel_inputs, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
+                #self.mel_inputs = normalize(self.mel_inputs, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
 
                 #why normalize before converter?
 
@@ -163,12 +163,12 @@ def main():
             for epoch in range(1, 100000000):
                 if sv.should_stop(): break
                 losses = [0,0,0,0]
-                for step in range(g.num_batch):
+                for step in tqdm(range(g.num_batch)):
                     loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
                     # print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
-                    print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
+                    # print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
                 gs = sess.run(g.global_step)
                 losses = [x / g.num_batch for x in losses]
                 print("###############################################################################")

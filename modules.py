@@ -398,7 +398,8 @@ def attention_block(queries,
         tensor = fc_block(tensor,
                           num_units=hp.embed_size,
                           dropout_rate=0,
-                          norm_type=norm_type,
+                          # norm_type=norm_type, #remove normalization
+                          norm_type=None,
                           training=training,
                           activation_fn=activation_fn,
                           scope="tensor_fc_block")  # (N, T_x, dec_channels)
