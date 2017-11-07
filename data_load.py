@@ -84,6 +84,7 @@ def str_to_idx(strin,char2idx):
     strin = re.sub('@',' @',strin)
     strin = re.sub("\\s+", " ",strin)
     strin = re.split('\s',strin)
+
     rtstr = [char2idx[char] for char in strin]
     return rtstr
 
