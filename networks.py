@@ -59,12 +59,11 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
                         scope="postnet_fc_block") # (N, T_x, E)
         vals = tf.sqrt(0.5) * (keys + embedding) # (N, T_x, E)
 
-    return keys, vals, masks
+    return keys, vals
 
 def decoder(inputs,
             keys,
             vals,
-            masks,
             prev_max_attentions=None,
             training=True,
             scope="decoder",
@@ -93,7 +92,8 @@ def decoder(inputs,
                               activation_fn=tf.nn.relu,
                               training=training,
                               scope="prenet_fc_block_{}".format(i))
-
+		
+		alignments = []
         for i in range(hp.dec_layers):
             # Causal Convolution Block. queries: (N, T_y/r, d)
             queries = conv_block(inputs,
@@ -101,7 +101,7 @@ def decoder(inputs,
                                  dropout_rate=hp.dropout_rate,    #perhaps add the dropout
                                  padding="CAUSAL",
                                  norm_type=hp.norm_type,
-                                 activation_fn=glu,
+                                 activation_fn=glu,    #NEED TO THINK IF WE REMOVE THIS
                                  training=training,
                                  scope="decoder_conv_block_{}".format(i))
 
@@ -109,28 +109,30 @@ def decoder(inputs,
             tensor, alignments, max_attentions = attention_block(queries,
                                                                  keys,
                                                                  vals,
-                                                                 masks,
                                                                  num_units=hp.attention_size,
                                                                  dropout_rate=hp.dropout_rate,
                                                                  prev_max_attentions=prev_max_attentions,
                                                                  norm_type=hp.norm_type,
-                                                                 activation_fn=tf.nn.relu,
+                                                                 activation_fn=tf.nn.relu, # NEED TO SEE IF WE REMOVE THIS
                                                                  training=training,
                                                                  scope="attention_block_{}".format(i))
-
+			alignments.append(alignment)
             # inputs = tensor + queries
-            inputs = tf.sqrt(0.5) * (tensor + queries) # (N, T_x, E) # missing the sqrt multiplication of this
+            inputs = tf.sqrt(0.5) * (tensor + queries) # (N, T_x, E)
 
+            decoder_output = inputs # (N, Ty, e)
             
-
         # Readout layers
         mels = fc_block(inputs,
-                        num_units=hp.n_mels*hp.r,
+                        num_units=hp.n_mels*hp.r*2,
                         dropout_rate=0,
                         norm_type=hp.norm_type,      # perhaps add normalization
                         activation_fn=None,
                         training=training,
                         scope="mels")  # (N, T_y/r, n_mels*r)
+                        
+        mels = glu(mels)
+        
         dones = fc_block(inputs,
                          num_units=2,
                          dropout_rate=0,
@@ -138,20 +140,17 @@ def decoder(inputs,
                          activation_fn=None,
                          training=training,
                          scope="dones")  # (N, T_y/r, 2)
-    return inputs, mels, dones, alignments, max_attentions  #perhaps return inputs too
+ 
+    return mels, dones, decoder_output, alignments, max_attentions
 
-def converter(inputs, training=True, scope="decoder2", reuse=None):
-    '''Decoder Post-processing net = CBHG
+def converter(inputs, training=True, scope="converter", reuse=None):
+    '''Converter
     Args:
-      inputs: A 3d tensor with shape of [N, T_y, n_mels]. Log magnitude spectrogram of sound files.
-        It is recovered to its original shape.
-      training: Whether or not the layer is in training mode.  
+      inputs: A 3d tensor with shape of [N, Ty, e/r]. Activations of the reshaped outputs of the decoder.
+      training: Whether or not the layer is in training mode.
       scope: Optional scope for `variable_scope`
       reuse: Boolean, whether to reuse the weights of a previous layer
         by the same name.
-        
-    Returns
-      Predicted linear spectrogram tensor with shape of [N, T_y, 1+n_fft//2].
     '''
     with tf.variable_scope(scope, reuse=reuse):
         for i in range(hp.converter_layers):
@@ -160,7 +159,7 @@ def converter(inputs, training=True, scope="decoder2", reuse=None):
                                  dropout_rate=hp.dropout_rate,   # perhaps add dropout
                                  padding="SAME",
                                  norm_type=hp.norm_type,
-                                 activation_fn=glu,
+                                 activation_fn=glu,  #perhaps remove glu
                                  training=training,
                                  scope="converter_conv_block_{}".format(i))  # (N, T_y/r, d)
 

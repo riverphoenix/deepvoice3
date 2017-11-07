@@ -16,13 +16,13 @@ import tqdm
 
 
 def get_spectrograms(sound_file):
-    '''Extracts log(melspectrogram) and log(magnitude) from `sound_file`.
+    '''Returns normalized log(melspectrogram) and log(magnitude) from `sound_file`.
     Args:
       sound_file: A string. The full path of a sound file.
 
     Returns:
-      mel: A 2d array of shape (n_mels, T)
-      mag: A 2d array of shape (1+n_fft/2, T)
+      mel: A 2d array of shape (Ty, n_mels) <- Transposed
+      mag: A 2d array of shape (Ty, 1+n_fft/2) <- Transposed
     '''
     # Loading sound file
     y, sr = librosa.load(sound_file, sr=hp.sr)
@@ -40,23 +40,23 @@ def get_spectrograms(sound_file):
                      win_length=hp.win_length)
 
     # magnitude spectrogram
-    mag = np.abs(linear) # (1+n_fft//2, T)
+    mag = np.abs(linear) # (1+n_fft//2, Ty)
 
     # mel spectrogram
     mel_basis = librosa.filters.mel(hp.sr, hp.n_fft, hp.n_mels)  # (n_mels, 1+n_fft//2)
-    mel = np.dot(mel_basis, mag**2)  # (n_mels, t)
+    mel = np.dot(mel_basis, mag**2)  # (n_mels, Ty)
 
     # Transpose
-    mel = mel.T.astype(np.float32) # (T, n_mels)
-    mag = mag.T.astype(np.float32) # (T, 1+n_fft//2)
+    mel = mel.T.astype(np.float32) # (Ty, n_mels)
+    mag = mag.T.astype(np.float32) # (Ty, 1+n_fft//2)
 
     # Sequence length
     dones = np.ones_like(mel[:, 0])
 
     # Padding
-    mel = np.pad(mel, ((0, hp.T_y - len(mel)), (0, 0)), mode="constant")[:hp.T_y]
-    mag = np.pad(mag, ((0, hp.T_y - len(mag)), (0, 0)), mode="constant")[:hp.T_y]
-    dones = np.pad(dones, ((0, hp.T_y - len(dones))), mode="constant")[:hp.T_y]
+    mel = np.pad(mel, ((0, max(0, hp.Ty - len(mel))), (0, 0)), mode="constant")[:hp.Ty]
+    mag = np.pad(mag, ((0, max(0, hp.Ty - len(mag))), (0, 0)), mode="constant")[:hp.Ty]
+    dones = np.pad(dones, ((0, max(0, hp.Ty - len(dones)))), mode="constant")[:hp.Ty]
 
     # Log
     mel = np.log10(mel + 1e-8)
@@ -66,12 +66,9 @@ def get_spectrograms(sound_file):
     mel = (mel - hp.mel_mean) / hp.mel_std
     mag = (mag - hp.mag_mean) / hp.mag_std
 
-    # Reduce frames for net1
-    mel = np.reshape(mel, (-1, hp.n_mels*hp.r))
-    dones = np.reshape(dones, (-1, hp.r))
-    dones = np.equal(np.sum(dones, -1), 0).astype(np.int32) # 1 for done, 0 for undone.
+    dones = np.equal(dones, 0).astype(np.int32) # 1 for done, 0 for undone.
 
-    return mel, dones, mag # (T/r, n_mels*r), (T/r,), (T, 1_n_fft/2)
+    return mel, dones, mag # (Ty, n_mels*r), (Ty,), (Ty, 1+n_fft/2)
 
 if __name__ == "__main__":
     wav_folder = os.path.join(hp.data, 'wavs')
@@ -85,8 +82,8 @@ if __name__ == "__main__":
     files = glob.glob(os.path.join(wav_folder, "*"))
     for f in tqdm.tqdm(files):
         fname = os.path.basename(f)
-        mel, dones, mag = get_spectrograms(f)  # (n_mels, T), (1+n_fft/2, T) float32
+        mel, dones, mag = get_spectrograms(f)  # (n_mels, Ty), (1+n_fft/2, Ty) float32
         np.save(os.path.join(mel_folder, fname.replace(".wav", ".npy")), mel)
         np.save(os.path.join(dones_folder, fname.replace(".wav", ".npy")), dones)
-        np.save(os.path.join(mag_folder, fname.replace(".wav", ".npy")), mag)
+        np.save(os.path.join(mag_folder, fname.replace(".wav", ".npy")), mag)	
 

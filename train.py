@@ -37,59 +37,59 @@ class Graph:
                 self.prev_max_attentions = tf.constant([0]*hp.batch_size)
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
-                self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r))
+                self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y, hp.n_mels))
                 self.prev_max_attentions = tf.placeholder(tf.int32, shape=(hp.batch_size,))
 
-            # Get decoder inputs: feed last frames only (N, T_y//r, n_mels)
-            self.decoder_inputs = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
+            # Get decoder inputs: feed last frames only (N, T_y, n_mels)
+            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, :]), self.y1[:, :-1, :]), 1)
 
             # Networks
             with tf.variable_scope("net"):
-                # Encoder. keys: (N, T_x, E), vals: (N, T_x, E)
-                self.keys, self.vals, self.masks = encoder(self.x,
+                # Encoder. keys: (N, Tx, e), vals: (N, Tx, e)
+                self.keys, self.vals = encoder(self.x,
                                                training=training,
                                                scope="encoder")
 
-                # Decoder. mels: (N, T_y/r, n_mels*r), dones: (N, T_y/r, 2), alignments: (N, T_y, T_x)
-                self.decoder_outputs, self.mels, self.dones, self.alignments, self.max_attentions = decoder(self.decoder_inputs,
-                                                                                     self.keys,
-                                                                                     self.vals,
-                                                                                     self.masks,
-                                                                                     self.prev_max_attentions,
-                                                                                     training=training,
-                                                                                     scope="decoder",
-                                                                                     reuse=None)
-                # Restore shape. mel_inputs: (N, T_y, n_mels)
-                self.mel_inputs = tf.reshape(self.mels, (hp.batch_size, hp.T_y, hp.n_mels))
-                #self.mel_inputs = normalize(self.mel_inputs, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
+                print("# Decoder.")# mel_output_: # (N, Ty, n_mels*r), done_output: (N, Ty, 2),
 
-                #why normalize before converter?
 
-                # Converter. mags: (N, T_y//r, (1+n_fft//2)*r)
-                #self.mags = converter(self.mel_inputs,  #perhaps use inputs instead of mel_inputs
-                self.mags = converter(self.decoder_outputs,  #perhaps use inputs instead of mel_inputs
-                                          training=training,
-                                          scope="converter",
-                                          reuse=None)
+                # decoder_output: (N, Ty, e), alignments: dec_layers * (Ty, Tx), keys_li :# dec_layers*(Tx, a)
+                self.mel_output_, self.done_output, self.decoder_output, self.alignments, self.max_attentions = \
+                    decoder(self.decoder_input,
+                            self.keys,
+                            self.vals,
+                            self.prev_max_attentions,
+                            training=training,
+                            scope="decoder")
+
+                # Reshape
+                self.mel_output = self.mel_output_[:, ::hp.r, :]  # (N, Ty/r, n_mels*r)
+                self.mel_output = tf.reshape(self.mel_output, (hp.batch_size, hp.Ty, hp.n_mels))  # (N, Ty, n_mels)
+
+                # Activation. converter_input: (N, Ty, e)
+                self.converter_input = glu(self.mel_output)
+
+                # Converter. mag_output: (N, Ty, 1+n_fft//2)
+                self.mag_output = converter(self.converter_input,
+                                            training=training,
+                                            scope="converter")
             if training:
-                # Loss
-                self.loss1_mae = tf.reduce_mean(tf.abs(self.mels - self.y1))
-                self.loss1_ce = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.dones, labels=self.y2))
-                self.loss2 = tf.reduce_mean(tf.abs(self.mags - self.z))
+               print("# Loss")
+                self.loss1_mae = tf.reduce_mean(tf.abs(self.mel_output - self.y1))
+                self.loss1_ce = tf.reduce_mean(
+                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.done_output, labels=self.y2))
+                self.loss2 = tf.reduce_mean(tf.abs(self.mag_output - self.z))
                 self.loss = self.loss1_mae + self.loss1_ce + self.loss2
 
                 # Training Scheme
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                if hp.optim == "adam":
-                    self.optimizer = tf.train.AdamOptimizer(learning_rate=hp.lr)
-                else:
-                    self.optimizer = tf.train.RMSPropOptimizer(learning_rate=hp.lr)
+                self.optimizer = tf.train.AdamOptimizer(learning_rate=hp.lr)
                 ## gradient clipping
                 self.gvs = self.optimizer.compute_gradients(self.loss)
                 self.clipped = []
                 for grad, var in self.gvs:
-                    grad = grad if grad is None else tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
-                    grad = grad if grad is None else tf.clip_by_norm(grad, hp.max_grad_norm)
+                    grad = tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
+                    grad = tf.clip_by_norm(grad, hp.max_grad_norm)
                     self.clipped.append((grad, var))
                 self.train_op = self.optimizer.apply_gradients(self.clipped, global_step=self.global_step)
                    

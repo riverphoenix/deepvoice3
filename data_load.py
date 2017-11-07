@@ -92,7 +92,7 @@ def get_batch(config):
 
         # create batch queues
         texts, mels, dones, mags = tf.train.batch([text, mel, done, mag],
-                                shapes=[(hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
+                                shapes=[(hp.T_x,), (hp.T_y, hp.n_mels), (hp.T_y,), (hp.T_y, 1+hp.n_fft//2)],
                                 num_threads=32,
                                 batch_size=hp.batch_size, 
                                 capacity=hp.batch_size*32,   
