@@ -38,7 +38,7 @@ class Hyperparams:
     r = 4 # Reduction factor
     dropout_rate = .05
     ## Enocder
-    vocab_size = 32 # [PE a-z'.?]
+    vocab_size = 52 #
     embed_size = 256 # == e
     enc_layers = 7
     enc_filter_size = 5
@@ -53,9 +53,9 @@ class Hyperparams:
     converter_channels = 256 # == v
 
     # data
-    data = 'datasets/LJSpeech'
+    data = 'datasets/LJTest'
     max_duration = 10.0#10.10 # seconds
-    T_x = 180#150 # characters. maximum length of text.
+    T_x = 300#150 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
 
     # training scheme
