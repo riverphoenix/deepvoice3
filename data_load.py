@@ -77,16 +77,14 @@ def load_vocab():
     
     return char2idx, idx2char
 
-def str_to_idx(strin,char2idx):
+def str_to_ph(strin):
     strin = re.sub('([A-Z])@','\\1 @',strin)
     strin = re.sub('([A-Z])\*','\\1 *',strin)
     strin = re.sub('@([A-Z])','@ \\1',strin)
     strin = re.sub('@',' @',strin)
     strin = re.sub("\\s+", " ",strin)
     strin = re.split('\s',strin)
-
-    rtstr = [char2idx[char] for char in strin]
-    return rtstr
+    return strin
 
 def load_train_data(config):
     # Load vocabulary
@@ -100,9 +98,10 @@ def load_train_data(config):
 
         sent = text_normalize(sent) + "*" # text normalization, *: EOS
         sent = break_to_phonemes(sent)
+        sent = str_to_ph(sent)
         if len(sent) <= hp.T_x:
-            sent += "@"*(hp.T_x-len(sent))
-            pstring = str_to_idx(sent,char2idx)
+            sent.extend(['@'] * (hp.T_x-len(sent)))
+            pstring = [char2idx[char] for char in sent]    
             texts.append(np.array(pstring, np.int32).tostring())
             texts_test.append(np.array(pstring,np.int32))
             mels.append(os.path.join(config.data_paths, "mels", fname + ".npy"))
@@ -117,12 +116,13 @@ def load_test_data():
     # Parse
     texts = []
     for line in codecs.open('test_sents.txt', 'r', 'utf-8'):
-        sent = text_normalize(sent) + "*" # text normalization, *: EOS
+        sent = text_normalize(line) + "*" # text normalization, *: EOS
         sent = break_to_phonemes(sent)
+        sent = str_to_ph(sent)
         if len(sent) <= hp.T_x:
-            sent += "@"*(hp.T_x-len(sent))
-            pstring = str_to_idx(sent,char2idx)
-            texts.append(np.array(pstring,np.int32))
+            sent.extend(['@'] * (hp.T_x-len(sent)))
+            pstring = [char2idx[char] for char in sent]
+            texts.append(np.array(pstring, np.int32))
     return texts
 
 def get_batch(config):

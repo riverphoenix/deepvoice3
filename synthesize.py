@@ -24,29 +24,38 @@ import matplotlib.pyplot as plt
 import random
 
 def create_write_files(sess,g,x,mname,cdir,samples):
-    # Inference
-    decoder_outputs = np.zeros((len(x), hp.T_y//hp.r, hp.attention_size), np.float32) # added decoder_outputs
-    mels = np.zeros((len(x), hp.T_y//hp.r, hp.n_mels*hp.r), np.float32)
-    prev_max_attentions = np.zeros((len(x),), np.int32)
-    for j in range(hp.T_x):
-        # Added decoder_outputs
-        _decoder_outputs,_mels, _max_attentions = sess.run([g.decoder_outputs,g.mels, g.max_attentions],
-                                          {g.x: x,
-                                           g.y1: mels,
-                                           g.prev_max_attentions: prev_max_attentions})
-        decoder_outputs[:, j, :] = _decoder_outputs[:, j, :] #decoder_outputs
-        mels[:, j, :] = _mels[:, j, :]
-        prev_max_attentions = _max_attentions[:, j]
-    mags = sess.run(g.mags, {g.decoder_outputs: decoder_outputs}) # changed from mels to decoder_outputs
 
-    # Generate wav files
+    # for i in range(0, len(x), hp.batch_size):
+    #     x2 = x[i:i+hp.batch_size]
+
+    # Get melspectrogram
+    mel_output = np.zeros((hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r), np.float32)
+    decoder_output = np.zeros((hp.batch_size, hp.T_y//hp.r, hp.embed_size), np.float32)
+    prev_max_attentions = np.zeros((hp.batch_size,), np.int32)
+    max_attentions = np.zeros((hp.batch_size, hp.T_y//hp.r))
+    alignments = np.zeros((hp.T_x, hp.T_y//hp.r), np.float32)
+    for j in range(hp.T_y//hp.r):
+        _mel_output, _decoder_output, _max_attentions, _alignments = \
+            sess.run([g.mel_output, g.decoder_output, g.max_attentions, g.alignments],
+                      {g.x: x,
+                       g.y1: mel_output,
+                       g.prev_max_attentions: prev_max_attentions})
+        mel_output[:, j, :] = _mel_output[:, j, :]
+        decoder_output[:, j, :] = _decoder_output[:, j, :]
+        alignments[:, j] = _alignments[0].T[:, j]
+        prev_max_attentions = _max_attentions[:, j]
+        max_attentions[:, j] = _max_attentions[:, j]
+
+    # Get magnitude
+    mags = sess.run(g.mag_output, {g.decoder_output: decoder_output})
     z_list = random.sample(range(0,hp.batch_size),samples)
 
+    # Generate wav files
     for i, mag in enumerate(mags):
-        # generate wav files
         if i in z_list:
+        # generate wav files
             mag = mag*hp.mag_std + hp.mag_mean # denormalize
-            audio = spectrogram2wav(np.power(10, mag))
+            audio = spectrogram2wav(np.power(10, mag) ** hp.sharpening_factor)
             write(cdir + "/{}_{}.wav".format(mname, i), hp.sr, audio)
 
 def synthesize_part(grp,config,gs,x_train):
