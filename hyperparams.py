@@ -34,7 +34,7 @@ class Hyperparams:
     mel_std = 2.5
 
     # Model
-    norm_type = "bn" # TODO: weight normalization
+    norm_type = "ins" # TODO: weight normalization
     r = 4 # Reduction factor
     dropout_rate = .05
     ## Enocder
@@ -42,11 +42,11 @@ class Hyperparams:
     embed_size = 256 # == e
     enc_layers = 7
     enc_filter_size = 5
-    enc_channels = 64 # == c
+    enc_channels = 256 # == c
     ## Decoder
     dec_layers = 4
     dec_filter_size = 5
-    attention_size = 256 # == a
+    attention_size = 128 # == a
     ## Converter
     converter_layers = 5
     converter_filter_size = 5

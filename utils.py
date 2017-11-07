@@ -39,7 +39,7 @@ def invert_spectrogram(spectrogram):
     '''
     return librosa.istft(spectrogram, hp.hop_length, win_length=hp.win_length, window="hann")
 
-def plot_alignment(alignment, gs):
+def plot_alignment(alignment, gs, elapsed_time):
     """
     Plots the alignment
 
@@ -54,11 +54,9 @@ def plot_alignment(alignment, gs):
     fig.colorbar(im, ax=ax)
     plt.xlabel('Decoder timestep')
     plt.ylabel('Encoder timestep')
-    plt.title('Global Steps={}'.format(gs))
+    hours = elapsed_time // 3600
+    minutes = (elapsed_time - 3600 * hours) // 60
+    plt.title('{} Steps After {} hours {} minutes'.format(gs, hours, minutes))
     plt.tight_layout()
     plt.axis('off')
     plt.savefig('{}/alignment_{}.png'.format(hp.logdir, gs), format='png')
-
-    # figure = plt.figure()
-    # plt.bar(np.arange(len(a)), a)
-    # plt.savefig('{}/a_{}.png'.format(hp.logdir, gs), format='png')
