@@ -28,7 +28,7 @@ def text_normalize(sent):
     def _strip_accents(s):
         return ''.join(c for c in unicodedata.normalize('NFD', s)
                        if unicodedata.category(c) != 'Mn')
-    normalized = re.sub("[^ A-Z',;.]", "", _strip_accents(sent).upper())
+    normalized = re.sub("[^ A-Z,;.]", "", _strip_accents(sent).upper())
     if normalized[-1] in [".",",","?",";"]:
         normalized = normalized[0:-1]
     normalized = re.sub('\'',' ',normalized)
@@ -36,6 +36,7 @@ def text_normalize(sent):
     normalized = re.sub(',','@@',normalized)
     normalized = re.sub(';','@@@',normalized)
     normalized = re.sub('\.','@@@@',normalized)
+    normalized = normalized.strip()
     return normalized
 
 def break_to_phonemes(strin):
@@ -83,6 +84,7 @@ def str_to_ph(strin):
     strin = re.sub('@([A-Z])','@ \\1',strin)
     strin = re.sub('@',' @',strin)
     strin = re.sub("\\s+", " ",strin)
+    strin = re.sub("@\*","*",strin)
     strin = re.split('\s',strin)
     return strin
 
@@ -95,7 +97,6 @@ def load_train_data(config):
     metadata = os.path.join(config.data_paths, 'metadata.csv')
     for line in codecs.open(metadata, 'r', 'utf-8'):
         fname, _, sent = line.strip().split("|")
-
         sent = text_normalize(sent) + "*" # text normalization, *: EOS
         sent = break_to_phonemes(sent)
         sent = str_to_ph(sent)

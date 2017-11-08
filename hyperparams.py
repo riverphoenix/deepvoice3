@@ -53,7 +53,7 @@ class Hyperparams:
     converter_channels = 256 # == v
 
     # data
-    data = 'datasets/LJTest'
+    data = 'datasets/LJSpeech'
     max_duration = 10.0#10.10 # seconds
     T_x = 300#150 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
@@ -70,7 +70,7 @@ class Hyperparams:
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 1
+    test_interval = 5
     checkpoint_interval = 1
 
     train_iterations = 1
