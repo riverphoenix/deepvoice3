@@ -149,12 +149,13 @@ def get_batch(config):
         mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (T_y/r, n_mels*r)
         done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (T_y,)
         mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (T_y, 1+n_fft/2)
+
         # create batch queues
         texts, mels, dones, mags = tf.train.batch([text, mel, done, mag],
                                 shapes=[(hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
-                                num_threads=32,
+                                num_threads=32,  #32
                                 batch_size=hp.batch_size, 
-                                capacity=hp.batch_size*32,   
+                                capacity=hp.batch_size*32,   # 32
                                 dynamic_pad=False)
 
     return _texts_test, texts, mels, dones, mags, num_batch

@@ -20,6 +20,9 @@ import tensorflow as tf
 from fn_utils import infolog
 import synthesize
 from utils import *
+from tensorflow.python import debug as tf_debug
+
+
 
 class Graph:
     def __init__(self, config=None,training=True):
@@ -34,14 +37,16 @@ class Graph:
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
                 self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch(config)
-                self.prev_max_attentions = tf.constant([0]*hp.batch_size)
+                self.prev_max_attentions = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
                 self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r))
-                self.prev_max_attentions = tf.placeholder(tf.int32, shape=(hp.batch_size,))
+                self.prev_max_attentions = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size,))
 
             # Get decoder inputs: feed last frames only (N, T_y//r, n_mels)
-            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
+            #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
+            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, :]), self.y1[:, :-1, :]), 1)
+
 
             # Networks
             with tf.variable_scope("net"):
@@ -61,6 +66,7 @@ class Graph:
                                                                                      scope="decoder",
                                                                                      reuse=None)
                 # Restore shape. converter_input: (N, T_y, e/r)
+                self.converter_input = self.decoder_output
                 self.converter_input = tf.reshape(self.decoder_output, (hp.batch_size, hp.T_y, -1))
                 self.converter_input = normalize(self.converter_input, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
 
@@ -81,12 +87,13 @@ class Graph:
                 ## gradient clipping
                 self.gvs = self.optimizer.compute_gradients(self.loss)
                 self.clipped = []
-                for grad, var in self.gvs:
-                    grad = tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
-                    grad = tf.clip_by_norm(grad, hp.max_grad_norm)
-                    self.clipped.append((grad, var))
+                with tf.variable_scope("clipping"):
+                    for grad, var in self.gvs:
+                        grad = tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
+                        grad = tf.clip_by_norm(grad, hp.max_grad_norm)
+                        self.clipped.append((grad, var))
                 self.train_op = self.optimizer.apply_gradients(self.clipped, global_step=self.global_step)
-                   
+                
                 # Summary
                 tf.summary.scalar('loss', self.loss)
                 tf.summary.scalar('loss1_mae', self.loss1_mae)
@@ -121,6 +128,8 @@ def main():
     parser.add_argument('--test_samples', type=int, default=hp.test_iterations)
     parser.add_argument('--num_iterations', type=int, default=hp.num_iterations)
 
+    parser.add_argument('--debug',type=bool,default=False)
+
     config = parser.parse_args()
     
     config.log_dir = config.log_dir + '/' + config.log_name
@@ -140,6 +149,8 @@ def main():
         sv = tf.train.Supervisor(logdir=config.log_dir, save_model_secs=0)
         with sv.managed_session() as sess:
 
+            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+
             if config.load_path:
                 # Restore from a checkpoint if the user requested it.
                 restore_path = get_most_recent_checkpoint(config.load_path)
@@ -153,7 +164,7 @@ def main():
                 infolog.log('Starting new training', slack=True)
 
             summary_writer = tf.summary.FileWriter(config.log_dir, sess.graph)
-
+            
             for epoch in range(1, 100000000):
                 if sv.should_stop(): break
                 losses = [0,0,0,0]
@@ -161,6 +172,7 @@ def main():
                     loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
+
                     # print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
                     print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
                 gs = sess.run(g.global_step)

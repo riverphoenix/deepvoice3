@@ -54,9 +54,9 @@ def get_spectrograms(sound_file):
     dones = np.ones_like(mel[:, 0])
 
     # Padding
-    mel = np.pad(mel, ((0, hp.T_y - len(mel)), (0, 0)), mode="constant")[:hp.T_y]
-    mag = np.pad(mag, ((0, hp.T_y - len(mag)), (0, 0)), mode="constant")[:hp.T_y]
-    dones = np.pad(dones, ((0, hp.T_y - len(dones))), mode="constant")[:hp.T_y]
+    mel = np.pad(mel, ((0, max(hp.T_y - len(mel),0)), (0, 0)), mode="constant")[:hp.T_y]
+    mag = np.pad(mag, ((0, max(hp.T_y - len(mag),0)), (0, 0)), mode="constant")[:hp.T_y]
+    dones = np.pad(dones, (max(0, hp.T_y - len(dones),0)), mode="constant")[:hp.T_y]
 
     # Log
     mel = np.log10(mel + 1e-8)

@@ -31,21 +31,22 @@ def create_write_files(sess,g,x,mname,cdir,samples):
     # Get melspectrogram
     mel_output = np.zeros((hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r), np.float32)
     decoder_output = np.zeros((hp.batch_size, hp.T_y//hp.r, hp.embed_size), np.float32)
-    prev_max_attentions = np.zeros((hp.batch_size,), np.int32)
-    max_attentions = np.zeros((hp.batch_size, hp.T_y//hp.r))
-    alignments = np.zeros((hp.T_x, hp.T_y//hp.r), np.float32)
+    prev_max_attentions = np.zeros((hp.dec_layers, hp.batch_size,), np.int32)
+    max_attentions = np.zeros((hp.dec_layers, hp.batch_size, hp.T_y//hp.r))
+    #alignments = np.zeros((hp.T_x, hp.T_y//hp.r), np.float32)
     for j in range(hp.T_y//hp.r):
-        _mel_output, _decoder_output, _max_attentions, _alignments = \
-            sess.run([g.mel_output, g.decoder_output, g.max_attentions, g.alignments],
+        _mel_output, _decoder_output, _max_attentions = \
+            sess.run([g.mel_output, g.decoder_output, g.max_attentions],
                       {g.x: x,
                        g.y1: mel_output,
                        g.prev_max_attentions: prev_max_attentions})
         mel_output[:, j, :] = _mel_output[:, j, :]
         decoder_output[:, j, :] = _decoder_output[:, j, :]
-        alignments[:, j] = _alignments[0].T[:, j]
-        prev_max_attentions = _max_attentions[:, j]
-        max_attentions[:, j] = _max_attentions[:, j]
+        #alignments[:, j] = _alignments[0].T[:, j]
+        prev_max_attentions = np.array(_max_attentions)[:, :, j]
+        max_attentions[:, :, j] = np.array(_max_attentions)[:, :, j]
 
+       
     # Get magnitude
     mags = sess.run(g.mag_output, {g.decoder_output: decoder_output})
     z_list = random.sample(range(0,hp.batch_size),samples)

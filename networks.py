@@ -31,12 +31,12 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
         # Encoder PreNet
         tensor = fc_block(embedding,
                           num_units=hp.enc_channels,
-                          dropout_rate=0,
+                          dropout_rate=hp.dropout_rate2,
                           norm_type=hp.norm_type,
-                          activation_fn=None,
+                          activation_fn=eval(hp.fc_enc_activ_fn), # changed to relu
                           training=training,
                           scope="prenet_fc_block") # (N, T_x, c)
-
+        
         # Convolution Blocks
         for i in range(hp.enc_layers):
             tensor = conv_block(tensor,
@@ -49,9 +49,9 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
         # Encoder PostNet
         keys = fc_block(tensor,
                         num_units=hp.embed_size,
-                        dropout_rate=0,
-                        norm_type=None,
-                        activation_fn=None,
+                        dropout_rate=hp.dropout_rate2,
+                        norm_type=hp.norm_type,
+                        activation_fn=eval(hp.fc_enc_activ_fn),  #changed to relu
                         training=training,
                         scope="postnet_fc_block") # (N, T_x, E)
         vals = tf.sqrt(0.5) * (keys + embedding) # (N, T_x, E)
@@ -89,7 +89,7 @@ def decoder(inputs,
                               activation_fn=tf.nn.relu,
                               training=training,
                               scope="prenet_fc_block_{}".format(i))
-
+        alignments_li, max_attentions_li = [], []
         for i in range(hp.dec_layers):
             # Causal Convolution Block. queries: (N, T_y/r, d)
             queries = conv_block(inputs,
@@ -104,16 +104,15 @@ def decoder(inputs,
             tensor, alignments, max_attentions = attention_block(queries,
                                                                  keys,
                                                                  vals,
-                                                                 masks,
                                                                  num_units=hp.attention_size,
                                                                  dropout_rate=hp.dropout_rate,
-                                                                 prev_max_attentions=prev_max_attentions,
-                                                                 norm_type=hp.norm_type,
-                                                                 activation_fn=None,
+                                                                 prev_max_attentions=prev_max_attentions[i],
                                                                  training=training,
                                                                  scope="attention_block_{}".format(i))
 
             # inputs = tensor + queries
+            alignments_li.append(alignments)
+            max_attentions_li.append(max_attentions)
             inputs = tf.sqrt(0.5) * (tensor + queries) # (N, T_x, E) # missing the sqrt multiplication of this
            
         decoder_output = inputs
@@ -121,23 +120,23 @@ def decoder(inputs,
         # Readout layers: mel_output: (N, T_y/r, n_mels*r)
         mel_output = fc_block(inputs,
                         num_units=hp.n_mels*hp.r*2,
-                        dropout_rate=0,
-                        norm_type=None,
-                        activation_fn=None,
+                        dropout_rate=hp.dropout_rate2,
+                        norm_type=hp.norm_type,
+                        activation_fn=eval(hp.fc_dec_activ_fn), # changed to relu
                         training=training,
                         scope="mels")  # (N, T_y/r, n_mels*r*2)
-        A, B = tf.split(mel_output, 2, 2)
-        mel_output = A*tf.nn.sigmoid(B)
+
+        mel_output = glu(mel_output)
 
         ## done_output: # (N, T_y/r, 2)
         done_output = fc_block(inputs,
                          num_units=2,
-                         dropout_rate=0,
-                         norm_type=None,
-                         activation_fn=None,
+                         dropout_rate=hp.dropout_rate2,
+                         norm_type=hp.norm_type,
+                         activation_fn=eval(hp.fc_dec_activ_fn), # changed to relu
                          training=training,
                          scope="dones")
-    return mel_output, done_output, decoder_output, alignments, max_attentions
+    return mel_output, done_output, decoder_output, alignments_li, max_attentions_li
 
 def converter(inputs, training=True, scope="converter", reuse=None):
     '''Converter
@@ -161,28 +160,28 @@ def converter(inputs, training=True, scope="converter", reuse=None):
         # Readout layer. mag_output: (N, T_y, n_fft/2+1)
         mag_output = fc_block(inputs,
                        num_units=hp.n_fft//2+1,
-                       dropout_rate=0,
-                       norm_type=None,
-                       activation_fn=None,
+                       dropout_rate=hp.dropout_rate2,
+                       norm_type=hp.norm_type,
+                       activation_fn=eval(hp.fc_conv_activ_fn), # changed to relu
                        training=training,
                        scope="mag")
 
         # Added two for mags instead
-        # mag = fc_block(inputs,
+        # mag1 = fc_block(inputs,
         #                num_units=hp.n_mels*hp.r,
-        #                dropout_rate=0,
+        #                dropout_rate=hp.dropout_rate2,
         #                norm_type=None,
-        #                activation_fn=None,
+        #                activation_fn=tf.nn.relu, # changed to relu
         #                training=training,
         #                scope="mag1")  # (N, T_y/r, 2)
 
-        # mag = tf.reshape(mag, (hp.batch_size, hp.T_y, hp.n_mels))
+        # mag1 = tf.reshape(mag1, (hp.batch_size, hp.T_y, hp.n_mels))
 
-        # mag = fc_block(mag,
+        # mag_output = fc_block(mag1,
         #                num_units=hp.n_fft//2+1,
-        #                dropout_rate=0,
+        #                dropout_rate=hp.dropout_rate2,
         #                norm_type=None,
-        #                activation_fn=None,
+        #                activation_fn=tf.nn.relu, # changed to relu
         #                training=training,
         #                scope="mag2")  # (N, T_y/r, 2)
 
