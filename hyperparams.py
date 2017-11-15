@@ -37,10 +37,13 @@ class Hyperparams:
     norm_type = "ins" # TODO: weight normalization
     r = 4 # Reduction factor 4
     sinusoid = True
-    dropout_rate = .05 # .05
-    dropout_rate2 = .0 # new for FC
+    dropout_rate = .2 # .05
+    dropout_rate_enc = .0 # new for FC
+    dropout_rate_conv = .2
+    dropout_rate2 = .2 # new for FC
+
     ## Enocder
-    vocab_size = 52 #
+    vocab_size = 32 # 52
     embed_size = 256 # == e
     enc_layers = 7
     enc_filter_size = 5
@@ -58,14 +61,14 @@ class Hyperparams:
     # fc_enc_activ_fn = 'tf.nn.relu'  #None in paper
     # fc_dec_activ_fn = 'tf.nn.relu'  #None in paper
     # fc_conv_activ_fn = 'tf.nn.relu'  #None in paper
-    fc_enc_activ_fn = 'None'  #None in paper
+    fc_enc_activ_fn = 'tf.nn.relu' #None in paper
     fc_dec_activ_fn = 'None'  #None in paper
     fc_conv_activ_fn = 'None'  #None in paper
 
     # data
-    data = 'datasets/LJSpeech'
+    data = 'datasets/LJTest'
     max_duration = 10.0#10.10 # seconds
-    T_x = 200 #150 # characters. maximum length of text.
+    T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
 
     # training scheme
@@ -80,8 +83,8 @@ class Hyperparams:
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 2
-    checkpoint_interval = 1
+    test_interval = 100
+    checkpoint_interval = 100
 
     train_iterations = 1
     test_iterations = 1

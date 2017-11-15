@@ -31,7 +31,7 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
         # Encoder PreNet
         tensor = fc_block(embedding,
                           num_units=hp.enc_channels,
-                          dropout_rate=hp.dropout_rate2,
+                          dropout_rate=hp.dropout_rate_enc,
                           norm_type=hp.norm_type,
                           activation_fn=eval(hp.fc_enc_activ_fn), # changed to relu
                           training=training,
@@ -49,7 +49,7 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
         # Encoder PostNet
         keys = fc_block(tensor,
                         num_units=hp.embed_size,
-                        dropout_rate=hp.dropout_rate2,
+                        dropout_rate=hp.dropout_rate_enc,
                         norm_type=hp.norm_type,
                         activation_fn=eval(hp.fc_enc_activ_fn),  #changed to relu
                         training=training,
@@ -136,6 +136,7 @@ def decoder(inputs,
                          activation_fn=eval(hp.fc_dec_activ_fn), # changed to relu
                          training=training,
                          scope="dones")
+
     return mel_output, done_output, decoder_output, alignments_li, max_attentions_li
 
 def converter(inputs, training=True, scope="converter", reuse=None):

@@ -34,7 +34,8 @@ def embed(inputs, vocab_size, num_units, zero_pad=True, scope="embedding", reuse
         lookup_table = tf.get_variable('lookup_table', 
                                        dtype=tf.float32, 
                                        shape=[vocab_size, num_units],
-                                       initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
+                                       initializer=tf.random_uniform_initializer(-1.0,1.0))
+                                       #initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
         if zero_pad:
             lookup_table = tf.concat((tf.zeros(shape=[1, num_units]), 
                                       lookup_table[1:, :]), 0)
@@ -42,7 +43,7 @@ def embed(inputs, vocab_size, num_units, zero_pad=True, scope="embedding", reuse
         outputs = tf.nn.embedding_lookup(lookup_table, inputs)
 
     return outputs
- 
+
 def normalize(inputs, 
               type="bn",
               decay=.999,
@@ -209,7 +210,7 @@ def conv_block(inputs,
     num_inputs = inputs.get_shape()[-1]
     _inputs = inputs
     with tf.variable_scope(scope, reuse=reuse):
-        #inputs = tf.layers.dropout(inputs,rate=hp.dropout_rate, training=training) # added dropout
+        inputs = tf.layers.dropout(inputs,rate=hp.dropout_rate_conv, training=training) # added dropout
         inputs = conv1d(inputs, num_inputs*2, size=size, padding=padding)  # (N, T_x, c*2)
         inputs = normalize(inputs, type=norm_type, training=training, activation_fn=activation_fn)
         inputs += _inputs # residual connection
@@ -243,11 +244,10 @@ def fc_block(inputs,
     with tf.variable_scope(scope, reuse=reuse):
         inputs = tf.layers.dropout(inputs, rate=dropout_rate, training=training)
 
-        # Transformation
+         # Transformation
         tensor = tf.layers.dense(inputs,
                                  units=num_units,
-                                 activation=None)  # (N, Tx, c1)
-
+                                 activation=None,name=scope+'_dense')  # (N, Tx, c1)
         # Normalization -> Activation
         tensor = normalize(tensor, type=norm_type, training=training, activation_fn=activation_fn)
 

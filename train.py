@@ -149,7 +149,7 @@ def main():
         sv = tf.train.Supervisor(logdir=config.log_dir, save_model_secs=0)
         with sv.managed_session() as sess:
 
-            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+            #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 
             if config.load_path:
                 # Restore from a checkpoint if the user requested it.
@@ -174,7 +174,7 @@ def main():
                     losses = [x + y for x, y in zip(losses, loss_one)]
 
                     # print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
-                    print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
+                    #print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
                 gs = sess.run(g.global_step)
                 losses = [x / g.num_batch for x in losses]
                 print("###############################################################################")
