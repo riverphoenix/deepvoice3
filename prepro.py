@@ -56,13 +56,14 @@ def get_spectrograms(sound_file):
     # Padding
     mel = np.pad(mel, ((0, max(hp.T_y - len(mel),0)), (0, 0)), mode="constant")[:hp.T_y]
     mag = np.pad(mag, ((0, max(hp.T_y - len(mag),0)), (0, 0)), mode="constant")[:hp.T_y]
-    dones = np.pad(dones, (max(0, hp.T_y - len(dones),0)), mode="constant")[:hp.T_y]
+    #dones = np.pad(dones,(max(0, hp.T_y - len(dones)),0), mode="constant")[:hp.T_y]
+    dones = np.pad(dones,max(0, hp.T_y - len(dones)),constant_values=0, mode="constant")[max(0, hp.T_y - len(dones)):]
 
     # Log
     mel = np.log10(mel + 1e-8)
     mag = np.log10(mag + 1e-8)
 
-    # Normalize
+     # Normalize
     mel = (mel - hp.mel_mean) / hp.mel_std
     mag = (mag - hp.mag_mean) / hp.mag_std
 

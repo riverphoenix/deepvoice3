@@ -45,9 +45,9 @@ class Graph:
 
             # Get decoder inputs: feed last frames only (N, T_y//r, n_mels)
             #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
-            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, :]), self.y1[:, :-1, :]), 1)
-
-
+            #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, :]), self.y1[:, :-1, :]), 1)
+            self.decoder_input = self.y1
+            
             # Networks
             with tf.variable_scope("net"):
                 # Encoder. keys: (N, T_x, e), vals: (N, T_x, e)
@@ -173,7 +173,7 @@ def main():
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
 
-                    # print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
+                    #print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
                     #print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
                 gs = sess.run(g.global_step)
                 losses = [x / g.num_batch for x in losses]
