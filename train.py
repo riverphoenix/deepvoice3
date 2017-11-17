@@ -15,7 +15,7 @@ from glob import glob
 from data_load import get_batch, load_vocab
 from hyperparams import Hyperparams as hp
 from modules import *
-from networks import encoder, decoder, converter
+from networks import encoder, decoder, converter, decoder_multi
 import tensorflow as tf
 from fn_utils import infolog
 import synthesize
@@ -46,34 +46,29 @@ class Graph:
             # Get decoder inputs: feed last frames only (N, T_y//r, n_mels)
             #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
             #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, :]), self.y1[:, :-1, :]), 1)
-            self.decoder_input = self.y1
+            #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :hp.rwin, :]), self.y1[:, :-hp.rwin, :]), 1)
+            self.decoder_input = tf.zeros_like(self.y1)
+            #self.decoder_input = self.y1
             
             # Networks
             with tf.variable_scope("net"):
                 # Encoder. keys: (N, T_x, e), vals: (N, T_x, e)
-                self.keys, self.vals, self.masks = encoder(self.x,
-                                               training=training,
-                                               scope="encoder")
+                self.keys, self.vals, self.masks, self.embedding = encoder(self.x,training=training,scope="encoder")
 
                 # Decoder. mel_output: (N, T_y/r, n_mels*r), done_output: (N, T_y/r, 2),
                 # decoder_output: (N, T_y/r, e), alignments: (N, T_y, T_x)
-                self.mel_output, self.done_output, self.decoder_output, self.alignments, self.max_attentions = decoder(self.decoder_input,
-                                                                                     self.keys,
-                                                                                     self.vals,
-                                                                                     self.masks,
-                                                                                     self.prev_max_attentions,
-                                                                                     training=training,
-                                                                                     scope="decoder",
-                                                                                     reuse=None)
+                self.mel_output, self.done_output, self.decoder_output, self.alignments, self.max_attentions = \
+                        decoder_multi(self.decoder_input, self.keys,self.vals,self.masks,
+                            self.prev_max_attentions,training=training,scope="decoder",reuse=None)
+                
                 # Restore shape. converter_input: (N, T_y, e/r)
                 self.converter_input = self.decoder_output
-                self.converter_input = tf.reshape(self.decoder_output, (hp.batch_size, hp.T_y, -1))
-                self.converter_input = normalize(self.converter_input, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
+                # self.converter_input = tf.reshape(self.decoder_output, (hp.batch_size, hp.T_y, -1))
+                # self.converter_input = normalize(self.converter_input, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
 
                 # Converter. mag_output: (N, T_y, 1+n_fft//2)
-                self.mag_output = converter(self.converter_input,
-                                          training=training,
-                                          scope="converter")
+                self.mag_output = converter(self.converter_input,training=training,scope="converter")
+
             if training:
                 # Loss
                 self.loss1_mae = tf.reduce_mean(tf.abs(self.mel_output - self.y1))
@@ -168,7 +163,8 @@ def main():
             for epoch in range(1, 100000000):
                 if sv.should_stop(): break
                 losses = [0,0,0,0]
-                for step in range(g.num_batch):
+                for step in tqdm(range(g.num_batch)):
+                #for step in range(g.num_batch):
                     loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
@@ -178,7 +174,7 @@ def main():
                 gs = sess.run(g.global_step)
                 losses = [x / g.num_batch for x in losses]
                 print("###############################################################################")
-                infolog.log("Global Step %04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(gs,losses[0],losses[1],losses[2],losses[3]))
+                infolog.log("Global Step %d (%04d): Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(epoch,gs,losses[0],losses[1],losses[2],losses[3]))
                 print("###############################################################################")
 
                 if epoch % config.summary_interval == 0:

@@ -45,7 +45,6 @@ def create_write_files(sess,g,x,mname,cdir,samples):
         #alignments[:, j] = _alignments[0].T[:, j]
         prev_max_attentions = np.array(_max_attentions)[:, :, j]
         max_attentions[:, :, j] = np.array(_max_attentions)[:, :, j]
-
        
     # Get magnitude
     mags = sess.run(g.mag_output, {g.decoder_output: decoder_output})

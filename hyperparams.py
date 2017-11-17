@@ -36,6 +36,7 @@ class Hyperparams:
     # Model
     norm_type = "ins" # TODO: weight normalization
     r = 4 # Reduction factor 4
+    rwin = 4 # Memory window
     sinusoid = True
     dropout_rate = .2 # .05
     dropout_rate_enc = .0 # new for FC
@@ -66,7 +67,7 @@ class Hyperparams:
     fc_conv_activ_fn = 'None'  #None in paper
 
     # data
-    data = 'datasets/LJTest'
+    data = 'datasets/LJSpeech'
     max_duration = 10.0#10.10 # seconds
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
@@ -83,8 +84,8 @@ class Hyperparams:
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 20
-    checkpoint_interval = 10
+    test_interval = 5
+    checkpoint_interval = 5
 
     train_iterations = 1
     test_iterations = 1
