@@ -67,7 +67,7 @@ class Hyperparams:
     fc_conv_activ_fn = 'None'  #None in paper
 
     # data
-    data = 'datasets/LJSpeech'
+    data = 'datasets/LJTest'
     max_duration = 10.0#10.10 # seconds
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)

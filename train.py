@@ -12,15 +12,17 @@ import argparse
 import os
 from glob import glob
 
-from data_load import get_batch, load_vocab
+from data_load import get_batch, load_vocab,get_zero_masks
 from hyperparams import Hyperparams as hp
 from modules import *
-from networks import encoder, decoder, converter, decoder_multi
+from networks import encoder, decoder, converter
 import tensorflow as tf
 from fn_utils import infolog
 import synthesize
 from utils import *
 from tensorflow.python import debug as tf_debug
+from random import randint
+
 
 
 
@@ -28,6 +30,7 @@ class Graph:
     def __init__(self, config=None,training=True):
         # Load vocabulary
         self.char2idx, self.idx2char = load_vocab()
+        self.zero_masks = get_zero_masks()
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Data Feeding
@@ -37,18 +40,29 @@ class Graph:
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
                 self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch(config)
-                self.prev_max_attentions = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
+                self.prev_max_attentions = tf.zeros(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
+                kr = tf.Variable(tf.random_uniform([1], minval=0, maxval=tf.shape(self.zero_masks.shape)[0], dtype=tf.int32))[0]
+                mmask = self.zero_masks[:,:,0]
+                print(mmask)
+                mmask = mmask[tf.newaxis, :, tf.newaxis]
+                print(mmask)
+                self.decoder_input = self.y1
+
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
                 self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r))
+                self.decoder_input = self.y1
                 self.prev_max_attentions = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size,))
 
             # Get decoder inputs: feed last frames only (N, T_y//r, n_mels)
             #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
             #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, :]), self.y1[:, :-1, :]), 1)
-            #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :hp.rwin, :]), self.y1[:, :-hp.rwin, :]), 1)
-            self.decoder_input = tf.zeros_like(self.y1)
+            # if pkr == 0:
+            #     self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :hp.rwin, :]), self.y1[:, hp.rwin:, :]), 1)
+            # else:
+            #     self.decoder_input = tf.concat([self.y1[:, :hp.rwin*pkr, :],tf.zeros_like(self.y1[:, :hp.rwin, :]), self.y1[:, hp.rwin*(pkr+1):, :]], 1)
             #self.decoder_input = self.y1
+            print(self.decoder_input)
             
             # Networks
             with tf.variable_scope("net"):
@@ -58,7 +72,7 @@ class Graph:
                 # Decoder. mel_output: (N, T_y/r, n_mels*r), done_output: (N, T_y/r, 2),
                 # decoder_output: (N, T_y/r, e), alignments: (N, T_y, T_x)
                 self.mel_output, self.done_output, self.decoder_output, self.alignments, self.max_attentions = \
-                        decoder_multi(self.decoder_input, self.keys,self.vals,self.masks,
+                        decoder(self.decoder_input, self.keys,self.vals,self.masks,
                             self.prev_max_attentions,training=training,scope="decoder",reuse=None)
                 
                 # Restore shape. converter_input: (N, T_y, e/r)

@@ -34,17 +34,17 @@ def create_write_files(sess,g,x,mname,cdir,samples):
     prev_max_attentions = np.zeros((hp.dec_layers, hp.batch_size,), np.int32)
     max_attentions = np.zeros((hp.dec_layers, hp.batch_size, hp.T_y//hp.r))
     #alignments = np.zeros((hp.T_x, hp.T_y//hp.r), np.float32)
-    for j in range(hp.T_y//hp.r):
+    for j in range((hp.T_y//hp.r)//hp.rwin):
         _mel_output, _decoder_output, _max_attentions = \
             sess.run([g.mel_output, g.decoder_output, g.max_attentions],
                       {g.x: x,
                        g.y1: mel_output,
                        g.prev_max_attentions: prev_max_attentions})
-        mel_output[:, j, :] = _mel_output[:, j, :]
-        decoder_output[:, j, :] = _decoder_output[:, j, :]
+        mel_output[:, j*hp.rwin:(j+1)*rwin, :] = _mel_output[:, j*hp.rwin:(j+1)*rwin, :]
+        decoder_output[:, j*hp.rwin:(j+1)*rwin, :] = _decoder_output[:, j*hp.rwin:(j+1)*rwin, :]
         #alignments[:, j] = _alignments[0].T[:, j]
-        prev_max_attentions = np.array(_max_attentions)[:, :, j]
-        max_attentions[:, :, j] = np.array(_max_attentions)[:, :, j]
+        prev_max_attentions = np.array(_max_attentions)[:, :, j*hp.rwin:(j+1)*rwin]
+        max_attentions[:, :, j*hp.rwin:(j+1)*rwin] = np.array(_max_attentions)[:, :, j*hp.rwin:(j+1)*rwin]
        
     # Get magnitude
     mags = sess.run(g.mag_output, {g.decoder_output: decoder_output})

@@ -99,3 +99,30 @@ def get_batch(config):
                                 dynamic_pad=False)
 
     return _texts_test, texts, mels, dones, mags, num_batch
+
+def get_zero_masks():
+    mxval = (hp.T_y//hp.r)//hp.rwin
+    zero_masks = []
+    mms = []
+
+    for i in range(mxval):
+        if i == 0:        
+            for k in range(0,hp.T_y//hp.r):
+                if k == 0:
+                    mms = np.zeros(hp.n_mels*hp.r)
+                else:
+                    mms = np.vstack((mms,np.zeros(hp.n_mels*hp.r)))
+        else:
+            for k in range(0,i*hp.rwin):
+                if k == 0:
+                    mms = np.ones(hp.n_mels*hp.r)
+                else:
+                    mms = np.vstack((mms,np.ones(hp.n_mels*hp.r)))
+            for k in range(i*hp.rwin,hp.T_y//hp.r):
+                mms = np.vstack((mms,np.zeros(hp.n_mels*hp.r)))
+        if i == 0:
+            zero_masks = mms
+        else:
+            zero_masks = np.dstack((zero_masks,mms))
+
+    return tf.convert_to_tensor(np.array(zero_masks))

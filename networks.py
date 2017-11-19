@@ -59,24 +59,6 @@ def encoder(inputs, training=True, scope="encoder", reuse=None):
 
     return keys, vals, masks, embedding
 
-def decoder_multi(inputs,
-            keys,
-            vals,
-            masks,
-            prev_max_attentions=None,
-            training=True,
-            scope="decoder",
-            reuse=None):
-
-  #for zrw in range(((hp.T_y//hp.r)//hp.rwin)+1):
-  for zrw in range(1):
-    mel_output, done_output, decoder_output, alignments, max_attentions = decoder(inputs,
-      keys,vals,masks, prev_max_attentions,training=training,scope=scope+"_"+str(zrw),reuse=None)
-    inputs = tf.concat((mel_output[:,:hp.rwin*zrw,:],tf.zeros_like(mel_output[:, hp.rwin*zrw:, :])),1)
-    prev_max_attentions = max_attentions
-
-  return mel_output, done_output, decoder_output, alignments, max_attentions
-
 def decoder(inputs,
             keys,
             vals,
