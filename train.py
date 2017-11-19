@@ -30,7 +30,6 @@ class Graph:
     def __init__(self, config=None,training=True):
         # Load vocabulary
         self.char2idx, self.idx2char = load_vocab()
-        self.zero_masks = get_zero_masks()
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Data Feeding
@@ -41,12 +40,15 @@ class Graph:
             if training:
                 self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch(config)
                 self.prev_max_attentions = tf.zeros(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
-                kr = tf.Variable(tf.random_uniform([1], minval=0, maxval=tf.shape(self.zero_masks.shape)[0], dtype=tf.int32))[0]
-                mmask = self.zero_masks[:,:,0]
-                print(mmask)
-                mmask = mmask[tf.newaxis, :, tf.newaxis]
-                print(mmask)
-                self.decoder_input = self.y1
+                self.zero_masks = get_zero_masks()
+                self.rnf = tf.placeholder(tf.int32,shape=(1),name="rnf")
+                self.mmask = self.zero_masks[:,:,self.rnf[0]]
+                self.mmask = self.mmask[tf.newaxis, :, :]
+                self.mmask2 = self.mmask
+                for kl in range(0,hp.batch_size-1):
+                    self.mmask = tf.concat([self.mmask,self.mmask2], axis=0)
+                self.mmask = tf.to_float(self.mmask)
+                self.decoder_input = tf.multiply(self.y1,self.mmask)
 
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
@@ -62,7 +64,6 @@ class Graph:
             # else:
             #     self.decoder_input = tf.concat([self.y1[:, :hp.rwin*pkr, :],tf.zeros_like(self.y1[:, :hp.rwin, :]), self.y1[:, hp.rwin*(pkr+1):, :]], 1)
             #self.decoder_input = self.y1
-            print(self.decoder_input)
             
             # Networks
             with tf.variable_scope("net"):
@@ -177,22 +178,23 @@ def main():
             for epoch in range(1, 100000000):
                 if sv.should_stop(): break
                 losses = [0,0,0,0]
-                for step in tqdm(range(g.num_batch)):
-                #for step in range(g.num_batch):
-                    loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
+                #for step in tqdm(range(g.num_batch)):
+                for step in range(g.num_batch):
+                    rnf_in = randint(0,(hp.T_y//hp.r)//hp.rwin)
+                    rnf_in = np.array([rnf_in], dtype=np.int32)
+                    gs,merged,loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op],feed_dict={rnf:rnf_in})
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
 
                     #print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
-                    #print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
-                gs = sess.run(g.global_step)
+                    print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
                 losses = [x / g.num_batch for x in losses]
                 print("###############################################################################")
                 infolog.log("Global Step %d (%04d): Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(epoch,gs,losses[0],losses[1],losses[2],losses[3]))
                 print("###############################################################################")
 
                 if epoch % config.summary_interval == 0:
-                    summary_writer.add_summary(sess.run(g.merged),gs)
+                    summary_writer.add_summary(merged,gs)
 
                 if epoch % config.checkpoint_interval == 0:
                     infolog.log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
