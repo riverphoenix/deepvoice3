@@ -12,7 +12,7 @@ import argparse
 import os
 from glob import glob
 
-from data_load import get_batch, load_vocab,get_zero_masks
+from data_load import get_batch, load_vocab
 from hyperparams import Hyperparams as hp
 from modules import *
 from networks import encoder, decoder, converter
@@ -21,9 +21,6 @@ from fn_utils import infolog
 import synthesize
 from utils import *
 from tensorflow.python import debug as tf_debug
-from random import randint
-
-
 
 
 class Graph:
@@ -38,17 +35,9 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch(config)
+                self.origx, self.x, self.y1, self.y1r, self.y2, self.z, self.num_batch = get_batch(config)
                 self.prev_max_attentions = tf.zeros(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
-                self.zero_masks = get_zero_masks()
-                self.rnf = tf.placeholder(tf.int32,shape=(1),name="rnf")
-                self.mmask = self.zero_masks[:,:,self.rnf[0]]
-                self.mmask = self.mmask[tf.newaxis, :, :]
-                self.mmask2 = self.mmask
-                for kl in range(0,hp.batch_size-1):
-                    self.mmask = tf.concat([self.mmask,self.mmask2], axis=0)
-                self.mmask = tf.to_float(self.mmask)
-                self.decoder_input = tf.multiply(self.y1,self.mmask)
+                self.decoder_input = self.y1r
 
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
@@ -130,6 +119,7 @@ def main():
     parser.add_argument('--data_paths', default=hp.data)
     parser.add_argument('--load_path', default=None)
     parser.add_argument('--initialize_path', default=None)
+    parser.add_argument('--deltree', default=False)
 
     parser.add_argument('--summary_interval', type=int, default=hp.summary_interval)
     parser.add_argument('--test_interval', type=int, default=hp.test_interval)
@@ -143,7 +133,12 @@ def main():
     config = parser.parse_args()
     
     config.log_dir = config.log_dir + '/' + config.log_name
-    if not os.path.exists(config.log_dir): os.makedirs(config.log_dir)
+    if not os.path.exists(config.log_dir): 
+        os.makedirs(config.log_dir)
+    elif config.deltree:
+        for the_file in os.listdir(config.log_dir):
+            file_path = os.path.join(config.log_dir, the_file)
+            os.unlink(file_path)
 
     log_path = os.path.join(config.log_dir+'/', 'train.log')
     infolog.init(log_path, "log")
@@ -152,13 +147,13 @@ def main():
 
     g = Graph(config=config);
     print("Training Graph loaded")
-    g2 = Graph(training=False);
+    g2 = Graph(config=config,training=False);
     print("Testing Graph loaded")
 
     with g.graph.as_default():
         sv = tf.train.Supervisor(logdir=config.log_dir, save_model_secs=0)
         with sv.managed_session() as sess:
-
+        
             #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 
             if config.load_path:
@@ -180,9 +175,7 @@ def main():
                 losses = [0,0,0,0]
                 #for step in tqdm(range(g.num_batch)):
                 for step in range(g.num_batch):
-                    rnf_in = randint(0,(hp.T_y//hp.r)//hp.rwin)
-                    rnf_in = np.array([rnf_in], dtype=np.int32)
-                    gs,merged,loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op],feed_dict={rnf:rnf_in})
+                    gs,merged,loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
 

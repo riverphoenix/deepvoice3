@@ -15,6 +15,8 @@ import codecs
 import re
 import os
 import unicodedata
+from random import randint
+
 
 def text_normalize(sent):
     '''Minimum text preprocessing'''
@@ -73,14 +75,32 @@ def get_batch(config):
         _texts, _texts_test, _mels, _dones, _mags = load_train_data(config) # bytes
 
         # Calc total batch count
-        num_batch = len(_texts) // hp.batch_size
+        num_batch = (len(_texts) // hp.batch_size)*((hp.T_y//hp.r)//hp.rwin)
          
         # Convert to string tensor
         texts = tf.convert_to_tensor(_texts)
         mels = tf.convert_to_tensor(_mels)
         dones = tf.convert_to_tensor(_dones)
         mags = tf.convert_to_tensor(_mags)
-         
+
+        text2 = texts
+        mel2 = mels
+        done2 = dones
+        mag2 = mags
+
+        zero_masks = get_zero_masks()
+
+        for pkl in range((hp.T_y//hp.r)//hp.rwin):
+            texts = tf.concat([texts,text2],axis=0)
+            mels = tf.concat([mels,mel2],axis=0)
+            dones = tf.concat([dones,done2],axis=0)
+            mags = tf.concat([mags,mag2],axis=0)
+            if pkl == 0:
+            #     mel3 = tf.multiply(mel2,zero_masks_in)
+            # else:
+            #     mel3 = tf.concat([mel3,tf.multiply(mel2,zero_masks_in)],axis=0)
+        mels3 = mels
+  
         # Create Queues
         text, mel, done, mag = tf.train.slice_input_producer([texts, mels, dones, mags], shuffle=True)
 
@@ -90,22 +110,31 @@ def get_batch(config):
         done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (T_y,)
         mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (T_y, 1+n_fft/2)
 
+        for pkl in range((hp.T_y//hp.r)//hp.rwin):
+            zero_masks_in = zero_masks[:,:,pkl]
+            zero_masks_in = zero_masks_in[tf.newaxis, :, :]
+            mmask2 = zero_masks_in
+            for kl in range(hp.batch_size-1):
+                zero_masks_in = tf.concat([zero_masks_in,mmask2], axis=0)
+            zero_masks_in = tf.to_float(zero_masks_in)
+
+
         # create batch queues
-        texts, mels, dones, mags = tf.train.batch([text, mel, done, mag],
-                                shapes=[(hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
+        texts, mels, mels2, dones, mags = tf.train.batch([text, mel, mel3, done, mag],
+                                shapes=[(hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
                                 num_threads=32,
                                 batch_size=hp.batch_size, 
                                 capacity=hp.batch_size*32,   
                                 dynamic_pad=False)
 
-    return _texts_test, texts, mels, dones, mags, num_batch
+    return _texts_test, texts, mels, mels2, dones, mags, num_batch
 
 def get_zero_masks():
     mxval = (hp.T_y//hp.r)//hp.rwin
     zero_masks = []
     mms = []
 
-    for i in range(mxval):
+    for i in range(mxval+1):
         if i == 0:        
             for k in range(0,hp.T_y//hp.r):
                 if k == 0:
