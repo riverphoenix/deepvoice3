@@ -74,7 +74,8 @@ def get_batch(config):
         _texts, _texts_test, _mels, _dones, _mags = load_train_data(config) # bytes
 
         # Calc total batch count
-        num_batch = (len(_texts) // hp.batch_size)*((hp.T_y//hp.r)//hp.rwin)
+        #num_batch = (len(_texts) // hp.batch_size)*((hp.T_y//hp.r)//hp.rwin)
+        num_batch = (len(_texts) // hp.batch_size)
          
         # Convert to string tensor
         texts = tf.convert_to_tensor(_texts)
@@ -82,18 +83,18 @@ def get_batch(config):
         dones = tf.convert_to_tensor(_dones)
         mags = tf.convert_to_tensor(_mags)
 
-        text2 = texts
-        mel2 = mels
-        done2 = dones
-        mag2 = mags
+        # text2 = texts
+        # mel2 = mels
+        # done2 = dones
+        # mag2 = mags
 
         zero_masks = get_zero_masks()
 
-        for pkl in range((hp.T_y//hp.r)//hp.rwin):
-            texts = tf.concat([texts,text2],axis=0)
-            mels = tf.concat([mels,mel2],axis=0)
-            dones = tf.concat([dones,done2],axis=0)
-            mags = tf.concat([mags,mag2],axis=0)
+        # for pkl in range((hp.T_y//hp.r)//hp.rwin):
+        #     texts = tf.concat([texts,text2],axis=0)
+        #     mels = tf.concat([mels,mel2],axis=0)
+        #     dones = tf.concat([dones,done2],axis=0)
+        #     mags = tf.concat([mags,mag2],axis=0)
             
         # Create Queues
         text, mel, mel3, done, mag = tf.train.slice_input_producer([texts, mels, mels, dones, mags], shuffle=True)
