@@ -17,8 +17,6 @@ import os
 import unicodedata
 from random import randint
 
-count_mask = 0
-
 def text_normalize(sent):
     '''Minimum text preprocessing'''
     def _strip_accents(s):
@@ -118,10 +116,7 @@ def get_batch(config):
     return _texts_test, texts, mels, mels2, dones, mags, num_batch
 
 def load_masked(x,zero_masks):
-    global count_mask
-    x_ret = np.multiply(np.load(x),zero_masks[:,:,count_mask%51],dtype=np.float32)
-    count_mask = count_mask + 1 
-    return x_ret
+    return np.multiply(np.load(x),zero_masks[:,:,randint(0,(hp.T_y//hp.r)//hp.rwin+1)],dtype=np.float32)
 
 def get_zero_masks():
     mxval = (hp.T_y//hp.r)//hp.rwin
