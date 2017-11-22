@@ -17,6 +17,7 @@ import os
 import unicodedata
 from random import randint
 
+count_mask = 0
 
 def text_normalize(sent):
     '''Minimum text preprocessing'''
@@ -95,29 +96,16 @@ def get_batch(config):
             mels = tf.concat([mels,mel2],axis=0)
             dones = tf.concat([dones,done2],axis=0)
             mags = tf.concat([mags,mag2],axis=0)
-            if pkl == 0:
-            #     mel3 = tf.multiply(mel2,zero_masks_in)
-            # else:
-            #     mel3 = tf.concat([mel3,tf.multiply(mel2,zero_masks_in)],axis=0)
-        mels3 = mels
-  
+            
         # Create Queues
-        text, mel, done, mag = tf.train.slice_input_producer([texts, mels, dones, mags], shuffle=True)
+        text, mel, mel3, done, mag = tf.train.slice_input_producer([texts, mels, mels, dones, mags], shuffle=True)
 
         # Decoding.
         text = tf.decode_raw(text, tf.int32) # (T_x,)
         mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (T_y/r, n_mels*r)
         done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (T_y,)
         mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (T_y, 1+n_fft/2)
-
-        for pkl in range((hp.T_y//hp.r)//hp.rwin):
-            zero_masks_in = zero_masks[:,:,pkl]
-            zero_masks_in = zero_masks_in[tf.newaxis, :, :]
-            mmask2 = zero_masks_in
-            for kl in range(hp.batch_size-1):
-                zero_masks_in = tf.concat([zero_masks_in,mmask2], axis=0)
-            zero_masks_in = tf.to_float(zero_masks_in)
-
+        mel3 = tf.py_func(load_masked, [mel3,zero_masks], tf.float32)
 
         # create batch queues
         texts, mels, mels2, dones, mags = tf.train.batch([text, mel, mel3, done, mag],
@@ -128,6 +116,12 @@ def get_batch(config):
                                 dynamic_pad=False)
 
     return _texts_test, texts, mels, mels2, dones, mags, num_batch
+
+def load_masked(x,zero_masks):
+    global count_mask
+    x_ret = np.multiply(np.load(x),zero_masks[:,:,count_mask%51],dtype=np.float32)
+    count_mask = count_mask + 1 
+    return x_ret
 
 def get_zero_masks():
     mxval = (hp.T_y//hp.r)//hp.rwin
@@ -154,4 +148,4 @@ def get_zero_masks():
         else:
             zero_masks = np.dstack((zero_masks,mms))
 
-    return tf.convert_to_tensor(np.array(zero_masks))
+    return tf.convert_to_tensor(np.array(zero_masks),dtype=tf.float32)

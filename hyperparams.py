@@ -84,8 +84,8 @@ class Hyperparams:
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 5
-    checkpoint_interval = 5
+    test_interval = 2
+    checkpoint_interval = 1
 
     train_iterations = 1
     test_iterations = 1
