@@ -116,7 +116,7 @@ def get_batch(config):
     return _texts_test, texts, mels, mels2, dones, mags, num_batch
 
 def load_masked(x,zero_masks):
-    return np.multiply(np.load(x),zero_masks[:,:,randint(0,(hp.T_y//hp.r)//hp.rwin+1)],dtype=np.float32)
+    return np.multiply(np.load(x),zero_masks[:,:,randint(0,(hp.T_y//hp.r)//hp.rwin)],dtype=np.float32)
 
 def get_zero_masks():
     mxval = (hp.T_y//hp.r)//hp.rwin
