@@ -31,7 +31,7 @@ def create_write_files(sess,g,x,mname,cdir,samples):
     # Get melspectrogram
     mel_output = np.zeros((hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r), np.float32)
     decoder_output = np.zeros((hp.batch_size, hp.T_y//hp.r, hp.embed_size), np.float32)
-    prev_max_attentions = np.zeros((hp.dec_layers, hp.batch_size,), np.int32)
+    prev_max_attentions = np.zeros((hp.dec_layers, hp.batch_size), np.int32)
     max_attentions = np.zeros((hp.dec_layers, hp.batch_size, hp.T_y//hp.r))
     #alignments = np.zeros((hp.T_x, hp.T_y//hp.r), np.float32)
     for j in range((hp.T_y//hp.r)//hp.rwin):
@@ -40,11 +40,11 @@ def create_write_files(sess,g,x,mname,cdir,samples):
                       {g.x: x,
                        g.y1: mel_output,
                        g.prev_max_attentions: prev_max_attentions})
-        mel_output[:, j*hp.rwin:(j+1)*rwin, :] = _mel_output[:, j*hp.rwin:(j+1)*rwin, :]
-        decoder_output[:, j*hp.rwin:(j+1)*rwin, :] = _decoder_output[:, j*hp.rwin:(j+1)*rwin, :]
+        mel_output[:, j*hp.rwin:(j+1)*hp.rwin, :] = _mel_output[:, j*hp.rwin:(j+1)*hp.rwin, :]
+        decoder_output[:, j*hp.rwin:(j+1)*hp.rwin, :] = _decoder_output[:, j*hp.rwin:(j+1)*hp.rwin, :]
         #alignments[:, j] = _alignments[0].T[:, j]
-        prev_max_attentions = np.array(_max_attentions)[:, :, j*hp.rwin:(j+1)*rwin]
-        max_attentions[:, :, j*hp.rwin:(j+1)*rwin] = np.array(_max_attentions)[:, :, j*hp.rwin:(j+1)*rwin]
+        prev_max_attentions = np.array(_max_attentions)[:,:,(j+1)*hp.rwin]
+        max_attentions[:, :, j*hp.rwin:(j+1)*hp.rwin] = np.array(_max_attentions)[:, :, j*hp.rwin:(j+1)*hp.rwin]
        
     # Get magnitude
     mags = sess.run(g.mag_output, {g.decoder_output: decoder_output})

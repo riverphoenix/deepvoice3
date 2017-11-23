@@ -69,50 +69,49 @@ def load_test_data():
 
 def get_batch(config):
     """Loads training data and put them in queues"""
-    with tf.device('/cpu:0'):
-        # Load data
-        _texts, _texts_test, _mels, _dones, _mags = load_train_data(config) # bytes
+    # Load data
+    _texts, _texts_test, _mels, _dones, _mags = load_train_data(config) # bytes
 
-        # Calc total batch count
-        #num_batch = (len(_texts) // hp.batch_size)*((hp.T_y//hp.r)//hp.rwin)
-        num_batch = (len(_texts) // hp.batch_size)
-         
-        # Convert to string tensor
-        texts = tf.convert_to_tensor(_texts)
-        mels = tf.convert_to_tensor(_mels)
-        dones = tf.convert_to_tensor(_dones)
-        mags = tf.convert_to_tensor(_mags)
+    # Calc total batch count
+    #num_batch = (len(_texts) // hp.batch_size)*((hp.T_y//hp.r)//hp.rwin)
+    num_batch = (len(_texts) // hp.batch_size)
+     
+    # Convert to string tensor
+    texts = tf.convert_to_tensor(_texts)
+    mels = tf.convert_to_tensor(_mels)
+    dones = tf.convert_to_tensor(_dones)
+    mags = tf.convert_to_tensor(_mags)
 
-        # text2 = texts
-        # mel2 = mels
-        # done2 = dones
-        # mag2 = mags
+    # text2 = texts
+    # mel2 = mels
+    # done2 = dones
+    # mag2 = mags
 
-        zero_masks = get_zero_masks()
+    zero_masks = get_zero_masks()
 
-        # for pkl in range((hp.T_y//hp.r)//hp.rwin):
-        #     texts = tf.concat([texts,text2],axis=0)
-        #     mels = tf.concat([mels,mel2],axis=0)
-        #     dones = tf.concat([dones,done2],axis=0)
-        #     mags = tf.concat([mags,mag2],axis=0)
-            
-        # Create Queues
-        text, mel, mel3, done, mag = tf.train.slice_input_producer([texts, mels, mels, dones, mags], shuffle=True)
+    # for pkl in range((hp.T_y//hp.r)//hp.rwin):
+    #     texts = tf.concat([texts,text2],axis=0)
+    #     mels = tf.concat([mels,mel2],axis=0)
+    #     dones = tf.concat([dones,done2],axis=0)
+    #     mags = tf.concat([mags,mag2],axis=0)
+        
+    # Create Queues
+    text, mel, mel3, done, mag = tf.train.slice_input_producer([texts, mels, mels, dones, mags], shuffle=True)
 
-        # Decoding.
-        text = tf.decode_raw(text, tf.int32) # (T_x,)
-        mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (T_y/r, n_mels*r)
-        done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (T_y,)
-        mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (T_y, 1+n_fft/2)
-        mel3 = tf.py_func(load_masked, [mel3,zero_masks], tf.float32)
+    # Decoding.
+    text = tf.decode_raw(text, tf.int32) # (T_x,)
+    mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (T_y/r, n_mels*r)
+    done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (T_y,)
+    mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (T_y, 1+n_fft/2)
+    mel3 = tf.py_func(load_masked, [mel3,zero_masks], tf.float32)
 
-        # create batch queues
-        texts, mels, mels2, dones, mags = tf.train.batch([text, mel, mel3, done, mag],
-                                shapes=[(hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
-                                num_threads=32,
-                                batch_size=hp.batch_size, 
-                                capacity=hp.batch_size*32,   
-                                dynamic_pad=False)
+    # create batch queues
+    texts, mels, mels2, dones, mags = tf.train.batch([text, mel, mel3, done, mag],
+                            shapes=[(hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
+                            num_threads=32,
+                            batch_size=hp.batch_size, 
+                            capacity=hp.batch_size*32,   
+                            dynamic_pad=False)
 
     return _texts_test, texts, mels, mels2, dones, mags, num_batch
 

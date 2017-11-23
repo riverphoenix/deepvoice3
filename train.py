@@ -36,14 +36,14 @@ class Graph:
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
                 self.origx, self.x, self.y1, self.y1r, self.y2, self.z, self.num_batch = get_batch(config)
-                self.prev_max_attentions = tf.zeros(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
+                self.prev_max_attentions = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
                 self.decoder_input = self.y1r
 
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
                 self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r))
                 self.decoder_input = self.y1
-                self.prev_max_attentions = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size,))
+                self.prev_max_attentions = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size))
 
             # Get decoder inputs: feed last frames only (N, T_y//r, n_mels)
             #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
@@ -173,14 +173,14 @@ def main():
             for epoch in range(1, 100000000):
                 if sv.should_stop(): break
                 losses = [0,0,0,0]
-                #for step in tqdm(range(g.num_batch)):
-                for step in range(g.num_batch):
+                for step in tqdm(range(g.num_batch)):
+                #for step in range(g.num_batch):
                     gs,merged,loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
 
                     #print(sess.run([g.mels, g.dones, g.alignments, g.max_attentions,g.decoder_inputs]))
-                    print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
+                    #print("Step %04d/%04d: Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(step+1,g.num_batch,loss,loss1_mae,loss1_ce,loss2))
                 losses = [x / g.num_batch for x in losses]
                 print("###############################################################################")
                 infolog.log("Global Step %d (%04d): Loss = %.8f Loss1_mae = %.8f Loss1_ce = %.8f Loss2 = %.8f" %(epoch,gs,losses[0],losses[1],losses[2],losses[3]))
