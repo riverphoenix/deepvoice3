@@ -28,16 +28,14 @@ class Hyperparams:
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
     n_iter = 50 # Number of inversion iterations
     preemphasis = 0.97 # or None 0.97
-    mag_mean = -4.  # -4.
-    mag_std = 3.  # 3.
-    mel_mean = -5.  # -5
-    mel_std = 2.5  # 2.5
+    max_db = 100
+    ref_db = 20
 
     # Model
     norm_type = "ins" # TODO: weight normalization
     r = 4 # Reduction factor 4
-    rwin = 4 # Memory window
-    sinusoid = True
+    rwin = 1 # Memory window
+    sinusoid = False
     dropout_rate = .2 # .05
     dropout_rate_enc = .0 # new for FC
     dropout_rate_conv = .2
@@ -48,16 +46,17 @@ class Hyperparams:
     embed_size = 256 # == e
     enc_layers = 7
     enc_filter_size = 5
-    enc_channels = 256 # == c 256
+    enc_channels = 64 # == c 256
     ## Decoder
     dec_layers = 4
     dec_filter_size = 5
-    attention_size = 128 # == a 128
+    attention_size = 128*2 # == a 128
     ## Converter
-    converter_layers = 5
+    converter_layers = 5*2
     converter_filter_size = 5
     converter_channels = 256 # == v
-
+    attention_win_size = 3
+	
     #fc_block_enc
     # fc_enc_activ_fn = 'tf.nn.relu'  #None in paper
     # fc_dec_activ_fn = 'tf.nn.relu'  #None in paper
@@ -84,8 +83,8 @@ class Hyperparams:
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 20
-    checkpoint_interval = 20
+    test_interval = 10
+    checkpoint_interval = 5
 
     train_iterations = 1
     test_iterations = 1

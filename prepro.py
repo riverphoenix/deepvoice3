@@ -1,5 +1,5 @@
-#/usr/bin/python2
 # -*- coding: utf-8 -*-
+# #/usr/bin/python2
 
 '''
 By kyubyong park. kbpark.linguist@gmail.com. 
@@ -16,13 +16,13 @@ import tqdm
 
 
 def get_spectrograms(sound_file):
-    '''Extracts log(melspectrogram) and log(magnitude) from `sound_file`.
+    '''Returns normalized log(melspectrogram) and log(magnitude) from `sound_file`.
     Args:
       sound_file: A string. The full path of a sound file.
 
     Returns:
-      mel: A 2d array of shape (n_mels, T)
-      mag: A 2d array of shape (1+n_fft/2, T)
+      mel: A 2d array of shape (T, n_mels) <- Transposed
+      mag: A 2d array of shape (T, 1+n_fft/2) <- Transposed
     '''
     # Loading sound file
     y, sr = librosa.load(sound_file, sr=hp.sr)
@@ -35,47 +35,37 @@ def get_spectrograms(sound_file):
 
     # stft
     linear = librosa.stft(y=y,
-                     n_fft=hp.n_fft,
-                     hop_length=hp.hop_length,
-                     win_length=hp.win_length)
+                          n_fft=hp.n_fft,
+                          hop_length=hp.hop_length,
+                          win_length=hp.win_length)
 
     # magnitude spectrogram
-    mag = np.abs(linear) # (1+n_fft//2, T)
+    mag = np.abs(linear)  # (1+n_fft//2, T)
 
     # mel spectrogram
     mel_basis = librosa.filters.mel(hp.sr, hp.n_fft, hp.n_mels)  # (n_mels, 1+n_fft//2)
-    mel = np.dot(mel_basis, mag**2)  # (n_mels, t)
-
-    # Transpose
-    mel = mel.T.astype(np.float32) # (T, n_mels)
-    mag = mag.T.astype(np.float32) # (T, 1+n_fft//2)
+    mel = np.dot(mel_basis, mag)  # (n_mels, t)
 
     # Sequence length
-    dones = np.ones_like(mel[:, 0])
+    done = np.ones_like(mel[0, :]).astype(np.int32)
 
-    # Padding
-    mel = np.pad(mel, ((0, max(hp.T_y - len(mel),0)), (0, 0)), mode="constant")[:hp.T_y]
-    mag = np.pad(mag, ((0, max(hp.T_y - len(mag),0)), (0, 0)), mode="constant")[:hp.T_y]
-    #dones = np.pad(dones,(max(0, hp.T_y - len(dones)),0), mode="constant")[:hp.T_y]
-    dones = np.pad(dones,max(0, hp.T_y - len(dones)),constant_values=0, mode="constant")[max(0, hp.T_y - len(dones)):]
+    # to decibel
+    mel = librosa.amplitude_to_db(mel)
+    mag = librosa.amplitude_to_db(mag)
 
-    # Log
-    mel = np.log10(mel + 1e-8)
-    mag = np.log10(mag + 1e-8)
+    # normalize
+    mel = np.clip((mel - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
+    mag = np.clip((mag - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
 
-     # Normalize
-    mel = (mel - hp.mel_mean) / hp.mel_std
-    mag = (mag - hp.mag_mean) / hp.mag_std
+    # Transpose
+    mel = mel.T.astype(np.float32)  # (T, n_mels)
+    mag = mag.T.astype(np.float32)  # (T, 1+n_fft//2)
 
-    # Reduce frames for net1
-    mel = np.reshape(mel, (-1, hp.n_mels*hp.r))
-    dones = np.reshape(dones, (-1, hp.r))
-    dones = np.equal(np.sum(dones, -1), 0).astype(np.int32) # 1 for done, 0 for undone.
-
-    return mel, dones, mag # (T/r, n_mels*r), (T/r,), (T, 1+n_fft/2)
+    return mel, done, mag
 
 if __name__ == "__main__":
     wav_folder = os.path.join(hp.data, 'wavs')
+    # wav_folder = os.path.join('/data/private/voice/nick', 'Tom')
     mel_folder = os.path.join(hp.data, 'mels')
     dones_folder = os.path.join(hp.data, 'dones')
     mag_folder = os.path.join(hp.data, 'mags')
@@ -90,4 +80,3 @@ if __name__ == "__main__":
         np.save(os.path.join(mel_folder, fname.replace(".wav", ".npy")), mel)
         np.save(os.path.join(dones_folder, fname.replace(".wav", ".npy")), dones)
         np.save(os.path.join(mag_folder, fname.replace(".wav", ".npy")), mag)
-

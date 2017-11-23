@@ -35,44 +35,50 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                self.origx, self.x, self.y1, self.y1r, self.y2, self.z, self.num_batch = get_batch(config)
-                self.prev_max_attentions = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
-                self.decoder_input = self.y1r
+                self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch()
+                self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
+                #self.decoder_input = self.y1r
 
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
                 self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r))
-                self.decoder_input = self.y1
-                self.prev_max_attentions = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size))
+                #self.decoder_input = self.y1
+                self.prev_max_attentions_li = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size,))
 
-            # Get decoder inputs: feed last frames only (N, T_y//r, n_mels)
-            #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
-            #self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, :]), self.y1[:, :-1, :]), 1)
-            # if pkr == 0:
-            #     self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :hp.rwin, :]), self.y1[:, hp.rwin:, :]), 1)
-            # else:
-            #     self.decoder_input = tf.concat([self.y1[:, :hp.rwin*pkr, :],tf.zeros_like(self.y1[:, :hp.rwin, :]), self.y1[:, hp.rwin*(pkr+1):, :]], 1)
-            #self.decoder_input = self.y1
+			# Get decoder inputs: feed last frames only (N, Ty//r, n_mels)
+            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
             
             # Networks
-            with tf.variable_scope("net"):
-                # Encoder. keys: (N, T_x, e), vals: (N, T_x, e)
-                self.keys, self.vals, self.masks, self.embedding = encoder(self.x,training=training,scope="encoder")
-
-                # Decoder. mel_output: (N, T_y/r, n_mels*r), done_output: (N, T_y/r, 2),
-                # decoder_output: (N, T_y/r, e), alignments: (N, T_y, T_x)
-                self.mel_output, self.done_output, self.decoder_output, self.alignments, self.max_attentions = \
-                        decoder(self.decoder_input, self.keys,self.vals,self.masks,
-                            self.prev_max_attentions,training=training,scope="decoder",reuse=None)
+            with tf.variable_scope("encoder"):
+                self.keys, self.vals = encoder(self.x, training=training) # (N, Tx, e)
                 
-                # Restore shape. converter_input: (N, T_y, e/r)
-                self.converter_input = self.decoder_output
-                # self.converter_input = tf.reshape(self.decoder_output, (hp.batch_size, hp.T_y, -1))
-                # self.converter_input = normalize(self.converter_input, type=hp.norm_type, training=training, activation_fn=tf.nn.relu)
+            with tf.variable_scope("decoder"):
+                # mel_logits: (N, Ty/r, n_mels*r)
+                # done_output: (N, Ty/r, 2),
+                # decoder_output: (N, Ty/r, e)
+                # alignments_li: dec_layers*(Tx, Ty/r)
+                # max_attentions_li: dec_layers*(N, T_y/r)
+                self.mel_logits, self.done_output, self.decoder_output, self.alignments_li, self.max_attentions_li \
+                    = decoder(self.decoder_input,
+                             self.keys,
+                             self.vals,
+                             self.prev_max_attentions_li,
+                             training=training)
+                self.mel_output = tf.nn.sigmoid(self.mel_logits)
+                
+            with tf.variable_scope("converter"):
+                # Restore shape
+                self.converter_input = tf.reshape(self.decoder_output, (-1, hp.T_y, hp.embed_size//hp.r))
+                self.converter_input = fc_block(self.converter_input,
+                                                hp.converter_channels,
+                                                activation_fn=tf.nn.relu,
+                                                training=training) # (N, Ty, v)
+                                                
+                # Converter
+                self.mag_logits = converter(self.converter_input, training=training) # (N, Ty, 1+n_fft//2)
+                self.mag_output = tf.nn.sigmoid(self.mag_logits)
 
-                # Converter. mag_output: (N, T_y, 1+n_fft//2)
-                self.mag_output = converter(self.converter_input,training=training,scope="converter")
-
+            self.global_step = tf.Variable(0, name='global_step', trainable=False)
             if training:
                 # Loss
                 self.loss1_mae = tf.reduce_mean(tf.abs(self.mel_output - self.y1))
@@ -81,16 +87,14 @@ class Graph:
                 self.loss = self.loss1_mae + self.loss1_ce + self.loss2
                 
                 # Training Scheme
-                self.global_step = tf.Variable(0, name='global_step', trainable=False)
                 self.optimizer = tf.train.AdamOptimizer(learning_rate=hp.lr)
                 ## gradient clipping
                 self.gvs = self.optimizer.compute_gradients(self.loss)
                 self.clipped = []
-                with tf.variable_scope("clipping"):
-                    for grad, var in self.gvs:
-                        grad = tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
-                        grad = tf.clip_by_norm(grad, hp.max_grad_norm)
-                        self.clipped.append((grad, var))
+                for grad, var in self.gvs:
+                    grad = tf.clip_by_value(grad, -1. * hp.max_grad_val, hp.max_grad_val)
+                    grad = tf.clip_by_norm(grad, hp.max_grad_norm)
+                    self.clipped.append((grad, var))
                 self.train_op = self.optimizer.apply_gradients(self.clipped, global_step=self.global_step)
                 
                 # Summary
