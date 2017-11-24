@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import signal
+from matplotlib.pyplot import step, show
 
 from hyperparams import Hyperparams as hp
 
@@ -61,7 +62,7 @@ def invert_spectrogram(spectrogram):
     '''
     return librosa.istft(spectrogram, hp.hop_length, win_length=hp.win_length, window="hann")
 
-def plot_alignment(alignments, gs):
+def plot_alignment(config,alignments, gs):
     """Plots the alignment
     alignments: A list of (numpy) matrix of shape (encoder_steps, decoder_steps)
     gs : (int) global step
@@ -77,21 +78,40 @@ def plot_alignment(alignments, gs):
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     fig.colorbar(im, cax=cbar_ax)
     plt.suptitle('{} Steps'.format(gs))
-    plt.savefig('{}/alignment_{}.png'.format(hp.logdir, gs), format='png')
+    plt.savefig('{}/alignment_{}.png'.format(config.data_paths, gs), format='png')
 
-# def cross_entropy_loss(predictions, labels, num_classes):
-#     def _softmax(X):
-#         exps = np.exp(X) - np.max(X)
-#         return exps / np.sum(exps, axis=-1, keepdims=True)
-#
-#     def _onehot(X, num_classes):
-#         n, t = X.shape
-#         ret = np.zeros([n, t, num_classes], np.int32)
-#         for i in range(n):
-#             for j in range(t):
-#                 ret[:, :, X[i, j]] = 1
-#         return ret
-#
-#     y = _onehot(labels, num_classes)
-#     p = np.clip(_softmax(predictions), 1e-7, 1 - 1e-7)
-#     return np.where(y == 1, -np.log(p), -np.log(1 - p))
+def plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs):
+    plt.figure(figsize=(10, 10))
+
+    plt.subplot(2, 2, 1)
+    librosa.display.specshow(Kmel_out, y_axis='linear')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Predicted mel')
+
+    plt.subplot(2, 2, 2)
+    librosa.display.specshow(Ky1, y_axis='linear')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Original mel')
+
+    plt.subplot(2, 2, 3)
+    librosa.display.specshow(KMag, y_axis='linear')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Predicted mag')
+
+    plt.subplot(2, 2, 4)
+    librosa.display.specshow(Kz, y_axis='linear')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Original mag')
+
+    plt.figure()
+    plt.title('Dones')    
+    for shift, d in enumerate([Kdone,Ky2]):
+        bindata = binary_data(d, 2 * shift)
+        x = np.arange(0, d[-1] + 1)
+        y = np.array(bindata)
+        step(x, y)
+
+    plt.savefig('{}/losses_{}.png'.format(config.data_paths, gs), format='png')
+
+def binary_data(data, yshift=0):
+    return [yshift+1 if x in data else yshift for x in range(data[-1] + 1)]

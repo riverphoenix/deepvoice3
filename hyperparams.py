@@ -35,7 +35,9 @@ class Hyperparams:
     norm_type = "ins" # TODO: weight normalization
     r = 4 # Reduction factor 4
     rwin = 1 # Memory window
+    run_pers = False
     sinusoid = False
+    normalize_model = True
     dropout_rate = .2 # .05
     dropout_rate_enc = .0 # new for FC
     dropout_rate_conv = .2
@@ -66,7 +68,7 @@ class Hyperparams:
     fc_conv_activ_fn = 'None'  #None in paper
 
     # data
-    data = 'datasets/LJTest'
+    data = 'datasets/LJSpeech'
     max_duration = 10.0#10.10 # seconds
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
@@ -83,8 +85,49 @@ class Hyperparams:
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 20
-    checkpoint_interval = 10
+    test_interval = 1
+    checkpoint_interval = 1
 
     train_iterations = 1
     test_iterations = 1
+
+    #Off the shelf
+    #Global Step 25 (1350): Loss = 0.11636174 Loss1_mae = 0.06290965 Loss1_ce = 0.00366397 Loss2 = 0.04978812
+    #Noise sound
+    #Off the shelf remove normilazer from fc and conv
+    #Global Step 25 (1350): Loss = 0.10964647 Loss1_mae = 0.05855675 Loss1_ce = 0.00288924 Loss2 = 0.04820048
+    #Noise sound    
+
+    #Pers window 4
+    #Global Step 25 (1350): Loss = 0.13250279 Loss1_mae = 0.06017732 Loss1_ce = 0.01806482 Loss2 = 0.05426065
+    #Global Step 40 (2160): Loss = 0.15257074 Loss1_mae = 0.06233892 Loss1_ce = 0.03070003 Loss2 = 0.05953179
+    #Small noise
+
+    #Pers window 4 remove normilazer from fc and conv
+    #Global Step 25 (1350): Loss = 0.09492977 Loss1_mae = 0.04700819 Loss1_ce = 0.00124689 Loss2 = 0.04667469
+    #Noise but might be (one empty)
+
+    #Pers window 8 remove normilazer from fc and conv
+    #Global Step 25 (1350): Loss = 0.16058554 Loss1_mae = 0.05809595 Loss1_ce = 0.04192149 Loss2 = 0.06056810
+    #Global Step 40 (2160): Loss = 0.13492824 Loss1_mae = 0.05392413 Loss1_ce = 0.02699178 Loss2 = 0.05401233
+    #short noise, no sound on train
+
+    #Off the shelf Window 4
+    #Global Step 25 (1350): Loss = 0.16694964 Loss1_mae = 0.08454253 Loss1_ce = 0.02629825 Loss2 = 0.05610886
+    #Global Step 47 (2538): Loss = 0.15125100 Loss1_mae = 0.08238565 Loss1_ce = 0.01959107 Loss2 = 0.04927428
+    #Noise with norm and without
+
+    #Off the shelf sinusoid
+    #Global Step 25 (1350): Loss = 0.16132733 Loss1_mae = 0.08365148 Loss1_ce = 0.02483676 Loss2 = 0.05283908
+    #Pers window 1 remove normilazer from fc and conv
+    #Global Step 25 (1350): Loss = 0.14150960 Loss1_mae = 0.05494741 Loss1_ce = 0.02942976 Loss2 = 0.05713243
+
+
+
+    ##################################
+    #Test 1: Off the shelf [rwin=1, norm=True, pers=False]
+    #Test 2: Off the shelf [rwin=1, norm=False, pers=False]
+    #Test 3: Off the shelf [rwin=4, norm=False, pers=True]
+
+    #####
+    #Upgrade tensorflow?

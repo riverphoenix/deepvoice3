@@ -29,17 +29,17 @@ def create_write_files(sess,g,x,mname,cdir,samples):
     alignments_li = np.zeros((hp.dec_layers, hp.T_x, hp.T_y//hp.r), np.float32)
     prev_max_attentions_li = np.zeros((hp.dec_layers, hp.batch_size), np.int32)
     #alignments = np.zeros((hp.T_x, hp.T_y//hp.r), np.float32)
-    for j in range(hp.T_y // hp.r):
+    for j in range((hp.T_y // hp.r)//hp.rwin):
         _gs, _mel_output, _decoder_output, _max_attentions_li, _alignments_li = \
             sess.run([g.global_step, g.mel_output, g.decoder_output, g.max_attentions_li, g.alignments_li],
                      {g.x: x,
                       g.y1: mel_output,
                       g.prev_max_attentions_li:prev_max_attentions_li})
-        mel_output[:, j, :] = _mel_output[:, j, :]
-        decoder_output[:, j, :] = _decoder_output[:, j, :]
-        alignments_li[:, :, j] = np.array(_alignments_li)[:, :, j]
-        prev_max_attentions_li = np.array(_max_attentions_li)[:, :, j]       
-    
+        mel_output[:, j*hp.rwin:(j+1)*hp.rwin, :] = _mel_output[:, j*hp.rwin:(j+1)*hp.rwin, :]
+        decoder_output[:, j*hp.rwin:(j+1)*hp.rwin, :] = _decoder_output[:, j*hp.rwin:(j+1)*hp.rwin, :]
+        #alignments_li[:, :, j*hp.rwin:(j+1)*hp.rwin] = np.array(_alignments_li)[:, :, j*hp.rwin:(j+1)*hp.rwin]
+        prev_max_attentions_li = np.array(_max_attentions_li)[:, :, j*hp.rwin]
+       
     # Get magnitude
     mag_output = sess.run(g.mag_output, {g.decoder_output: decoder_output})
     z_list = random.sample(range(0,hp.batch_size),samples)

@@ -35,18 +35,19 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch()
+                self.origx, self.x, self.y1, self.y1r, self.y2, self.z, self.num_batch = get_batch(config)
                 self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
-                #self.decoder_input = self.y1r
+                if hp.run_pers: self.decoder_input = self.y1r
 
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
                 self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r))
-                #self.decoder_input = self.y1
                 self.prev_max_attentions_li = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size,))
+                if hp.run_pers: self.decoder_input = self.y1
 
 			# Get decoder inputs: feed last frames only (N, Ty//r, n_mels)
-            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
+            if not hp.run_pers: self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :hp.rwin, -hp.n_mels:]), self.y1[:, :-hp.rwin, -hp.n_mels:]), 1)
+            #self.decoder_input = self.y1
             
             # Networks
             with tf.variable_scope("encoder"):
@@ -179,7 +180,7 @@ def main():
                 losses = [0,0,0,0]
                 for step in tqdm(range(g.num_batch)):
                 #for step in range(g.num_batch):
-                    gs,merged,loss,loss1_mae,loss1_ce,loss2,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.train_op])
+                    gs,merged,loss,loss1_mae,loss1_ce,loss2,alginm,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1_mae,g.loss1_ce,g.loss2,g.alignments_li,g.train_op])
                     loss_one = [loss,loss1_mae,loss1_ce,loss2]
                     losses = [x + y for x, y in zip(losses, loss_one)]
 
@@ -200,6 +201,9 @@ def main():
                 if epoch % config.test_interval == 0:
                     infolog.log('Saving audio and alignment...')
                     synthesize.synthesize_part(g2,config,gs,g.origx)
+                    Kmel_out,Ky1,KDone,Ky2,KMag,Kz = sess.run([g.mel_output,g.y1,g.done_output,g.y2,g.mag_output,g.z])
+                    plot_alignment(config,alginm, str(gs // 1000).zfill(3) + "k")  # (Tx, Ty)
+                    plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs)
 
                 # break
                 if gs > config.num_iterations: break
