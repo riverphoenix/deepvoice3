@@ -36,15 +36,19 @@ class Hyperparams:
     r = 4 # Reduction factor 4
     rwin = 1 # Memory window
     run_pers = False
+    run_cmu = False
     sinusoid = False
-    normalize_model = True
+    normalize_model = False
     dropout_rate = .2 # .05
     dropout_rate_enc = .0 # new for FC
     dropout_rate_conv = .2
     dropout_rate2 = .2 # new for FC
 
     ## Enocder
-    vocab_size = 32 # 52
+    if not run_cmu:
+        vocab_size = 32
+    else:
+        vocab_size = 53
     embed_size = 256 # == e
     enc_layers = 7
     enc_filter_size = 5
@@ -68,7 +72,7 @@ class Hyperparams:
     fc_conv_activ_fn = 'None'  #None in paper
 
     # data
-    data = 'datasets/LJSpeech'
+    data = 'datasets/LJTest'
     max_duration = 10.0#10.10 # seconds
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)

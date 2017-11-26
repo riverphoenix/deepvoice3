@@ -14,6 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import signal
 from matplotlib.pyplot import step, show
+import librosa.display
 
 from hyperparams import Hyperparams as hp
 
@@ -78,40 +79,73 @@ def plot_alignment(config,alignments, gs):
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     fig.colorbar(im, cax=cbar_ax)
     plt.suptitle('{} Steps'.format(gs))
-    plt.savefig('{}/alignment_{}.png'.format(config.data_paths, gs), format='png')
+    plt.savefig('{}/alignment_{}.png'.format(config.log_dir, gs), format='png')
 
 def plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs):
     plt.figure(figsize=(10, 10))
 
-    plt.subplot(2, 2, 1)
-    librosa.display.specshow(Kmel_out, y_axis='linear')
-    plt.colorbar(format='%+2.0f dB')
+    plt.subplot(3, 2, 1)
+    librosa.display.specshow(Kmel_out[0,:,:])
     plt.title('Predicted mel')
+    plt.colorbar()
+    plt.tight_layout()
 
-    plt.subplot(2, 2, 2)
-    librosa.display.specshow(Ky1, y_axis='linear')
-    plt.colorbar(format='%+2.0f dB')
+    plt.subplot(3, 2, 2)
+    librosa.display.specshow(Ky1[0,:,:])
     plt.title('Original mel')
+    plt.colorbar()
+    plt.tight_layout()
 
-    plt.subplot(2, 2, 3)
-    librosa.display.specshow(KMag, y_axis='linear')
-    plt.colorbar(format='%+2.0f dB')
+    plt.subplot(3, 2, 3)
+    librosa.display.specshow(KMag[0,:,:], y_axis='log')
+    #plt.colorbar(format='%+2.0f dB')
     plt.title('Predicted mag')
+    plt.colorbar()
+    plt.tight_layout()
 
-    plt.subplot(2, 2, 4)
-    librosa.display.specshow(Kz, y_axis='linear')
-    plt.colorbar(format='%+2.0f dB')
+    plt.subplot(3, 2, 4)
+    librosa.display.specshow(Kz[0,:,:], y_axis='log')
+    #plt.colorbar(format='%+2.0f dB')
     plt.title('Original mag')
+    plt.colorbar()
+    plt.tight_layout()
 
-    plt.figure()
-    plt.title('Dones')    
-    for shift, d in enumerate([Kdone,Ky2]):
-        bindata = binary_data(d, 2 * shift)
-        x = np.arange(0, d[-1] + 1)
-        y = np.array(bindata)
-        step(x, y)
+    KDone = KDone[0,:,:]
+    Kd = []
+    for i in range(KDone.shape[0]):
+        if KDone[i,0] > KDone[i,1]:
+            Kd.append(0)
+        else:
+            Kd.append(1)
 
-    plt.savefig('{}/losses_{}.png'.format(config.data_paths, gs), format='png')
+    ind = np.arange(len(Kd))
+    width = 0.35
 
-def binary_data(data, yshift=0):
-    return [yshift+1 if x in data else yshift for x in range(data[-1] + 1)]
+    ax = plt.subplot(3, 2, 5)
+    ax.bar(ind, Kd, width, color='r')
+    plt.title('Predicted Dones')
+    plt.tight_layout()
+  
+    ax = plt.subplot(3, 2, 6)
+    ax.bar(ind, Ky2[0,:], width, color='r')
+    plt.title('Original Dones')
+    plt.tight_layout()
+
+    plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
+
+def plot_wavs(config,wavs):
+    print(wavs)
+    # plt.figure(figsize=(10, 10))
+
+    # plt.subplot(3, 2, 1)
+    # librosa.display.specshow(Kmel_out[0,:,:])
+    # plt.title('Predicted mel')
+    # plt.colorbar()
+    # plt.tight_layout()
+
+    # ax = plt.subplot(3, 2, 5)
+    # ax.bar(ind, Kd, width, color='r')
+    # plt.title('Predicted Dones')
+    # plt.tight_layout()
+  
+    # plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')

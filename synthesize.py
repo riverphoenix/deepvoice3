@@ -18,7 +18,7 @@ from data_load import load_test_data
 from scipy.io.wavfile import write
 import random
 
-def create_write_files(sess,g,x,mname,cdir,samples):
+def create_write_files(sess,g,org,x,mname,cdir,samples,typeS):
 
     # for i in range(0, len(x), hp.batch_size):
     #     x2 = x[i:i+hp.batch_size]
@@ -45,29 +45,41 @@ def create_write_files(sess,g,x,mname,cdir,samples):
     z_list = random.sample(range(0,hp.batch_size),samples)
 
     # Generate wav files
+    ret = []
     for i, mag in enumerate(mag_output):
         if i in z_list:
         # generate wav files
             #mag = mag*hp.mag_std + hp.mag_mean # denormalize
             #audio = spectrogram2wav(np.power(10, mag) ** hp.sharpening_factor)
+            txt = org[i]
             wav = spectrogram2wav(mag)
             write(cdir + "/{}_{}.wav".format(mname, i), hp.sr, wav)
+            ret.append([txt,wav,typeS])
+    return ret
 
-def synthesize_part(grp,config,gs,x_train):
+def synthesize_part(grp,config,gs,ort_train,x_train):
+    
+    x_train_rnd = random.sample(list(enumerate(x_train)), hp.batch_size)
+    indexes, x_train = [], []
+    for idx, val in x_train_rnd:
+        indexes.append(idx)
+        x_train.append(val)
+    ort = [ort_train[i] for i in indexes]
+    #x_train = random.sample(x_train, hp.batch_size)
+    x_or, x_test = load_test_data()
 
-    x_train = random.sample(x_train, hp.batch_size)
-    x_test = load_test_data()
-
+    wavs = []
     with grp.graph.as_default():
         sv = tf.train.Supervisor(logdir=config.log_dir)
         with sv.managed_session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
             # Restore parameters
             sv.saver.restore(sess, tf.train.latest_checkpoint(config.log_dir))
 
-            create_write_files(sess,grp,x_train,"sample_"+str(gs)+"_train_",config.log_dir,config.train_samples)
-            create_write_files(sess,grp,x_test,"sample_"+str(gs)+"_test_",config.log_dir,config.test_samples)
+            wavs.append(create_write_files(sess,grp,ort,x_train,"sample_"+str(gs)+"_train_",config.log_dir,config.train_samples,"train"))
+            wavs.append(create_write_files(sess,grp,x_or,x_test,"sample_"+str(gs)+"_test_",config.log_dir,config.test_samples,"test"))
 
             sess.close()
+    return wavs
 
 def synthesize():
     # Load data
