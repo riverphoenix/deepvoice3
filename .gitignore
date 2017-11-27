@@ -3,3 +3,5 @@ logs/
 samples/
 *.pyc
 /.project
+tools/REAPER/
+tools/SPTK-3.9/
