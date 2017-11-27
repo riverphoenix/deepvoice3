@@ -133,19 +133,14 @@ def plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs):
 
     plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
 
-def plot_wavs(config,wavs):
-    print(wavs)
-    # plt.figure(figsize=(10, 10))
+def plot_wavs(config,wavs,gs):
+    plt.figure(figsize=(10, 10))
+    for i in range(len(wavs)):
+        wav = wavs[i]
+        txt = str(wav[2])+':'+str(wav[0])
+        wv = wav[1]
 
-    # plt.subplot(3, 2, 1)
-    # librosa.display.specshow(Kmel_out[0,:,:])
-    # plt.title('Predicted mel')
-    # plt.colorbar()
-    # plt.tight_layout()
-
-    # ax = plt.subplot(3, 2, 5)
-    # ax.bar(ind, Kd, width, color='r')
-    # plt.title('Predicted Dones')
-    # plt.tight_layout()
-  
-    # plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')
+        plt.subplot(len(wavs),1, i+1)
+        librosa.display.waveplot(wv, sr=hp.sr)
+        plt.title(txt)
+    plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')

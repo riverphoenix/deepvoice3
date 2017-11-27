@@ -36,7 +36,7 @@ class Hyperparams:
     r = 4 # Reduction factor 4
     rwin = 1 # Memory window
     run_pers = False
-    run_cmu = False
+    run_cmu = True
     sinusoid = False
     normalize_model = False
     dropout_rate = .2 # .05
@@ -83,13 +83,14 @@ class Hyperparams:
     logdir = "logs"
     logname = 'demos'
     sampledir = 'samples'
+    puresynth = 'logs/first2'
     batch_size = 16
     max_grad_norm = 100.
     max_grad_val = 5.
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 1
+    test_interval = 2
     checkpoint_interval = 1
 
     train_iterations = 1
@@ -129,9 +130,8 @@ class Hyperparams:
 
 
     ##################################
-    #Test 1: Off the shelf [rwin=1, norm=True, pers=False]
-    #Test 2: Off the shelf [rwin=1, norm=False, pers=False]
-    #Test 3: Off the shelf [rwin=4, norm=False, pers=True]
+    #Test 1: Off the shelf [rwin=1, norm=True, pers=False, cmu=False]
+    #Test 2: Off the shelf [rwin=1, norm=False, pers=False, cmu=False]
+    #Test 3: Off the shelf [rwin=1, norm=False, pers=False, cmu=True]
 
-    #####
-    #Upgrade tensorflow?
+    #check input and how is fed and also on creations

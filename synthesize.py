@@ -14,11 +14,11 @@ import numpy as np
 import tensorflow as tf
 from train import Graph
 from utils import *
-from data_load import load_test_data
+from data_load import load_test_data, invert_text
 from scipy.io.wavfile import write
 import random
 
-def create_write_files(sess,g,org,x,mname,cdir,samples,typeS):
+def create_write_files(ret,sess,g,x,mname,cdir,samples,typeS):
 
     # for i in range(0, len(x), hp.batch_size):
     #     x2 = x[i:i+hp.batch_size]
@@ -45,28 +45,22 @@ def create_write_files(sess,g,org,x,mname,cdir,samples,typeS):
     z_list = random.sample(range(0,hp.batch_size),samples)
 
     # Generate wav files
-    ret = []
     for i, mag in enumerate(mag_output):
         if i in z_list:
         # generate wav files
             #mag = mag*hp.mag_std + hp.mag_mean # denormalize
             #audio = spectrogram2wav(np.power(10, mag) ** hp.sharpening_factor)
-            txt = org[i]
+            txt = x[i]
+            txt = invert_text(txt)
             wav = spectrogram2wav(mag)
             write(cdir + "/{}_{}.wav".format(mname, i), hp.sr, wav)
             ret.append([txt,wav,typeS])
     return ret
 
-def synthesize_part(grp,config,gs,ort_train,x_train):
+def synthesize_part(grp,config,gs,x_train):
     
-    x_train_rnd = random.sample(list(enumerate(x_train)), hp.batch_size)
-    indexes, x_train = [], []
-    for idx, val in x_train_rnd:
-        indexes.append(idx)
-        x_train.append(val)
-    ort = [ort_train[i] for i in indexes]
-    #x_train = random.sample(x_train, hp.batch_size)
-    x_or, x_test = load_test_data()
+    x_train = random.sample(x_train, hp.batch_size)
+    x_test = load_test_data()
 
     wavs = []
     with grp.graph.as_default():
@@ -75,8 +69,8 @@ def synthesize_part(grp,config,gs,ort_train,x_train):
             # Restore parameters
             sv.saver.restore(sess, tf.train.latest_checkpoint(config.log_dir))
 
-            wavs.append(create_write_files(sess,grp,ort,x_train,"sample_"+str(gs)+"_train_",config.log_dir,config.train_samples,"train"))
-            wavs.append(create_write_files(sess,grp,x_or,x_test,"sample_"+str(gs)+"_test_",config.log_dir,config.test_samples,"test"))
+            wavs = create_write_files(wavs,sess,grp,x_train,"sample_"+str(gs)+"_train_",config.log_dir,config.train_samples,"train")
+            wavs = create_write_files(wavs,sess,grp,x_test,"sample_"+str(gs)+"_test_",config.log_dir,config.test_samples,"test")
 
             sess.close()
     return wavs
@@ -94,10 +88,10 @@ def synthesize():
             saver = tf.train.Saver()
 
             # Restore parameters
-            saver.restore(sess, tf.train.latest_checkpoint(hp.logdir)); print("Restored!")
+            saver.restore(sess, tf.train.latest_checkpoint(hp.puresynth)); print("Restored!")
 
             # Get model name
-            mname = open(hp.logdir + '/checkpoint', 'r').read().split('"')[1]
+            mname = open(hp.puresynth + '/checkpoint', 'r').read().split('"')[1]
 
             # Synthesize
             file_id = 1
@@ -105,11 +99,11 @@ def synthesize():
                 x = X[i:i + hp.batch_size]
 
                 # Get melspectrogram
-                mel_output = np.zeros((hp.batch_size, hp.Ty // hp.r, hp.n_mels * hp.r), np.float32)
-                decoder_output = np.zeros((hp.batch_size, hp.Ty // hp.r, hp.embed_size), np.float32)
-                alignments_li = np.zeros((hp.dec_layers, hp.Tx, hp.Ty//hp.r), np.float32)
+                mel_output = np.zeros((hp.batch_size, hp.T_y // hp.r, hp.n_mels * hp.r), np.float32)
+                decoder_output = np.zeros((hp.batch_size, hp.T_y // hp.r, hp.embed_size), np.float32)
+                alignments_li = np.zeros((hp.dec_layers, hp.T_x, hp.T_y//hp.r), np.float32)
                 prev_max_attentions_li = np.zeros((hp.dec_layers, hp.batch_size), np.int32)
-                for j in range(hp.Ty // hp.r):
+                for j in range(hp.T_y // hp.r):
                     _gs, _mel_output, _decoder_output, _max_attentions_li, _alignments_li = \
                         sess.run([g.global_step, g.mel_output, g.decoder_output, g.max_attentions_li, g.alignments_li],
                                  {g.x: x,
@@ -134,5 +128,3 @@ def synthesize():
 if __name__ == '__main__':
     synthesize()
     print("Done")
-
-

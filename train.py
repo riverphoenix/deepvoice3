@@ -35,7 +35,7 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                self.ort, self.origx, self.x, self.y1, self.y1r, self.y2, self.z, self.num_batch = get_batch(config)
+                self.origx, self.x, self.y1, self.y1r, self.y2, self.z, self.num_batch = get_batch(config)
                 self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
                 if hp.run_pers: self.decoder_input = self.y1r
 
@@ -200,9 +200,9 @@ def main():
 
                 if epoch % config.test_interval == 0:
                     infolog.log('Saving audio and alignment...')
-                    ort, origx, Kmel_out,Ky1,KDone,Ky2,KMag,Kz = sess.run([g.ort,g.origx, g.mel_output,g.y1,g.done_output,g.y2,g.mag_output,g.z])
-                    wavs = synthesize.synthesize_part(g2,config,gs,ort,origx)
-                    plot_wavs(config,wavs)
+                    origx, Kmel_out,Ky1,KDone,Ky2,KMag,Kz = sess.run([g.origx, g.mel_output,g.y1,g.done_output,g.y2,g.mag_output,g.z])
+                    wavs = synthesize.synthesize_part(g2,config,gs,origx)
+                    plot_wavs(config,wavs,gs)
                     plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs)
                     plot_alignment(config,alginm, str(gs))  # (Tx, Ty)
                     

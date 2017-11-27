@@ -138,12 +138,11 @@ def load_data(config,training=True):
         char2idx, idx2char = load_vocab_cmu()    
 
     # Parse
-    orig, texts, _texts_test, mels, dones, mags = [], [], [], [], [], []
+    texts, _texts_test, mels, dones, mags = [], [], [], [], []
     num_samples = 1
     metadata = os.path.join(config.data_paths, 'metadata.csv')
     for line in codecs.open(metadata, 'r', 'utf-8'):
         fname, _, sent = line.strip().split("|")
-        orig.append(sent)
         if not hp.run_cmu: 
             sent = text_normalize(sent) + "E" # text normalization, E: EOS
         else:
@@ -162,7 +161,25 @@ def load_data(config,training=True):
             dones.append(os.path.join(config.data_paths, "dones", fname + ".npy"))
             mags.append(os.path.join(config.data_paths, "mags", fname + ".npy"))
 
-    return orig, texts, _texts_test, mels, dones, mags
+    return texts, _texts_test, mels, dones, mags
+
+def invert_text(txt):
+    if not hp.run_cmu: 
+        char2idx, idx2char = load_vocab()
+        pstring = [idx2char[char] for char in txt]
+        pstring = ''.join(pstring)
+        pstring = pstring.replace("E", "")
+        pstring = pstring.replace("P", "")
+    else:
+        char2idx, idx2char = load_vocab_cmu() 
+        pstring = [idx2char[char] for char in txt]
+        pstring = ''.join(pstring)
+        pstring = pstring.replace("@", " ")
+        pstring = pstring.replace("#", "")
+        pstring = pstring.replace("*", "")
+
+    return pstring
+
 
 def load_test_data():
     # Load vocabulary
@@ -172,13 +189,12 @@ def load_test_data():
         char2idx, idx2char = load_vocab_cmu() 
 
     # Parse
-    orig,texts = [],[]
+    texts = []
     for line in codecs.open('test_sents.txt', 'r', 'utf-8'):
-        orig.append(line)
         if not hp.run_cmu: 
             sent = text_normalize(line).strip() + "E" # text normalization, E: EOS
         else:
-            sent = text_normalize(line).strip() + "*" # text normalization, *: EOS
+            sent = text_normalize_cmu(line) + "*" # text normalization, *: EOS
             sent = break_to_phonemes(sent)
             sent = str_to_ph(sent)
         if len(sent) <= hp.T_x:
@@ -188,19 +204,17 @@ def load_test_data():
                 sent.extend(['#'] * (hp.T_x-len(sent)))
             texts.append([char2idx[char] for char in sent])
     texts = np.array(texts, np.int32)
-    return orig,texts
+    return texts
 
 def get_batch(config):
     """Loads training data and put them in queues"""
     with tf.device('/cpu:0'):
         # Load data
-        _origs, _texts, _texts_tests, _mels, _dones, _mags = load_data(config)
-
+        _texts, _texts_tests, _mels, _dones, _mags = load_data(config)
         # Calc total batch count
         num_batch = len(_texts) // hp.batch_size
          
         # Convert to string tensor
-        origs = tf.convert_to_tensor(_origs)
         texts = tf.convert_to_tensor(_texts)
         texts_tests = tf.convert_to_tensor(_texts_tests)
         mels = tf.convert_to_tensor(_mels)
@@ -210,10 +224,9 @@ def get_batch(config):
         zero_masks = get_zero_masks()
          
         # Create Queues
-        orig, text, texts_test, mel, mel3, done, mag = tf.train.slice_input_producer([origs, texts, texts_tests, mels, mels, dones, mags], shuffle=True)
+        text, texts_test, mel, mel3, done, mag = tf.train.slice_input_producer([texts, texts_tests, mels, mels, dones, mags], shuffle=True)
 
         # Decoding
-        orig = tf.decode_raw(orig, tf.uint8) # (None,)
         text = tf.decode_raw(text, tf.int32) # (None,)
         texts_test = tf.decode_raw(texts_test, tf.int32) # (None,)
         mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (None, n_mels)
@@ -221,7 +234,6 @@ def get_batch(config):
         mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (None, 1+n_fft/2)
 
         # Padding
-        orig = tf.pad(orig, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
         text = tf.pad(text, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
         texts_test = tf.pad(texts_test, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
         mel = tf.pad(mel, ((0, hp.T_y), (0, 0)))[:hp.T_y] # (Ty, n_mels)
@@ -237,14 +249,14 @@ def get_batch(config):
         done = done[::hp.r] # (Ty/r,)
 
         # create batch queues
-        origs, texts, texts_tests, mels, mels2, dones, mags = tf.train.batch([orig, text, texts_test, mel, mel3, done, mag],
-                                shapes=[(hp.T_x,), (hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
+        texts, texts_tests, mels, mels2, dones, mags = tf.train.batch([text, texts_test, mel, mel3, done, mag],
+                                shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
                                 num_threads=32,
                                 batch_size=hp.batch_size, 
                                 capacity=hp.batch_size*32,   
                                 dynamic_pad=False)
 
-    return origs, texts_tests, texts, mels, mels2, dones, mags, num_batch
+    return texts_tests, texts, mels, mels2, dones, mags, num_batch
 
 def get_zero_masks():
     mxval = (hp.T_y//hp.r)//hp.rwin
