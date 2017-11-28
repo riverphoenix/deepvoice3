@@ -136,7 +136,6 @@ def main():
     parser.add_argument('--debug',type=bool,default=False)
 
     config = parser.parse_args()
-    
     config.log_dir = config.log_dir + '/' + config.log_name
     if not os.path.exists(config.log_dir): 
         os.makedirs(config.log_dir)
@@ -144,23 +143,18 @@ def main():
         for the_file in os.listdir(config.log_dir):
             file_path = os.path.join(config.log_dir, the_file)
             os.unlink(file_path)
-
     log_path = os.path.join(config.log_dir+'/', 'train.log')
     infolog.init(log_path, "log")
-
     checkpoint_path = os.path.join(config.log_dir, 'model.ckpt')
-
     g = Graph(config=config);
     print("Training Graph loaded")
     g2 = Graph(config=config,training=False);
     print("Testing Graph loaded")
-
     with g.graph.as_default():
-        sv = tf.train.Supervisor(logdir=config.log_dir, save_model_secs=0)
+        sv = tf.train.Supervisor(logdir=config.log_dir)
         with sv.managed_session() as sess:
         
             #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
-
             if config.load_path:
                 # Restore from a checkpoint if the user requested it.
                 restore_path = get_most_recent_checkpoint(config.load_path)
