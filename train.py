@@ -35,20 +35,18 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                self.origx, self.x, self.y1, self.y1r, self.y2, self.z, self.num_batch = get_batch(config)
+                self.origx, self.x, self.y1, self.y2, self.z, self.y3a, self.y3b, self.y3c, self.y3d, self.num_batch = get_batch(config)
                 self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
-                if hp.run_pers: self.decoder_input = self.y1r
 
             else: # Evaluation
                 self.x = tf.placeholder(tf.int32, shape=(hp.batch_size, hp.T_x))
                 self.y1 = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r))
                 self.prev_max_attentions_li = tf.placeholder(tf.int32, shape=(hp.dec_layers, hp.batch_size,))
-                if hp.run_pers: self.decoder_input = self.y1
 
 			# Get decoder inputs: feed last frames only (N, Ty//r, n_mels)
-            if not hp.run_pers: self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :hp.rwin, -hp.n_mels:]), self.y1[:, :-hp.rwin, -hp.n_mels:]), 1)
+            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
             #self.decoder_input = self.y1
-            
+
             # Networks
             with tf.variable_scope("encoder"):
                 self.keys, self.vals = encoder(self.x, training=training) # (N, Tx, e)

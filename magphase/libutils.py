@@ -13,6 +13,7 @@ import os
 import glob
 import time
 from multiprocessing import Pool
+import random
 
 #==============================================================================
 # FUNCTIONS
@@ -179,8 +180,10 @@ def add_rel_path(rel_path):
 # Inserts pid to file name. This is useful when using temp files.--------------
 # Example: path/file.wav -> path/file_pid.wav
 def ins_pid(filepath):
+
+    hash = random.getrandbits(64)
     filename, ext = os.path.splitext(filepath)
-    filename = "%s_%d%s" % (filename, os.getpid(), ext)
+    filename = "temp/%s_%d_%s_%s" % (filename, os.getpid(), hash,ext)
     return filename
 
 # Inserts date and time to file name. This is useful for output files----------

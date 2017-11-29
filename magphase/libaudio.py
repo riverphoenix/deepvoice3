@@ -14,6 +14,7 @@ import soundfile as sf
 import libutils as lu
 from scipy import interpolate
 from ConfigParser import SafeConfigParser
+import subprocess
 
 # Configuration:
 #_curr_dir = os.path.dirname(os.path.realpath(__file__))
@@ -21,6 +22,7 @@ from ConfigParser import SafeConfigParser
 #_sptk_mcep_bin = os.path.realpath(_curr_dir + '/../tools/SPTK-3.9/build/bin/mcep')
 
 MAGIC = -1.0E+10 # logarithm floor (the same as SPTK)
+FNULL = open(os.devnull, 'w')
 
 #-------------------------------------------------------------------------------
 def parse_config():
@@ -481,10 +483,10 @@ def read_reaper_est_file(est_file, check_len_smpls=-1, fs=-1, skiprows=7, usecol
 
 # REAPER wrapper:--------------------------------------------------------------
 def reaper(in_wav_file, out_est_file):
-    print("Extracting epochs with REAPER...")
+    #print("Extracting epochs with REAPER...")
     global _reaper_bin
     cmd =  _reaper_bin + " -s -x 400 -m 50 -a -u 0.005 -i %s -p %s" % (in_wav_file, out_est_file)
-    call(cmd, shell=True)
+    call(cmd, shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
     return
     
 #------------------------------------------------------------------------------
@@ -619,7 +621,7 @@ def sp_to_mcep(m_sp, n_coeffs=60, alpha=0.77, in_type=3, fft_len=0):
 
     # MCEP:      
     curr_cmd = _sptk_mcep_bin + " -a %1.2f -m %d -l %d -e 1.0E-8 -j 0 -f 0.0 -q %d %s > %s" % (alpha, n_coeffs-1, fft_len, in_type, temp_sp, temp_mgc)
-    call(curr_cmd, shell=True)
+    call(curr_cmd, shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
     
     # Read MGC File:
     m_mgc = lu.read_binfile(temp_mgc , n_coeffs)

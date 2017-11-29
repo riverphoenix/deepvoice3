@@ -1575,7 +1575,6 @@ def analysis_lossless(wav_file, fft_len=None, out_dir=None):
 
     # Read file:
     v_sig, fs = sf.read(wav_file)
-
     # Epoch detection:
     est_file = lu.ins_pid('temp.est')
     la.reaper(wav_file, est_file)

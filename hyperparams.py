@@ -25,6 +25,7 @@ class Hyperparams:
     hop_length = int(sr*frame_shift) # samples  This is dependent on the frame_shift.
     win_length = int(sr*frame_length) # samples This is dependent on the frame_length.
     n_mels = 80 # Number of Mel banks to generate
+    nbins_phase = 60
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
     n_iter = 50 # Number of inversion iterations
     preemphasis = 0.97 # or None 0.97
@@ -33,16 +34,11 @@ class Hyperparams:
 
     # Model
     norm_type = "ins" # TODO: weight normalization
-    r = 4 # Reduction factor 4
-    rwin = 1 # Memory window
-    run_pers = False
+    r = 1 # Reduction factor 4
     run_cmu = True
     sinusoid = False
     normalize_model = False
     dropout_rate = .2 # .05
-    dropout_rate_enc = .0 # new for FC
-    dropout_rate_conv = .2
-    dropout_rate2 = .2 # new for FC
 
     ## Enocder
     if not run_cmu:
@@ -63,21 +59,15 @@ class Hyperparams:
     converter_channels = 256 # == v
     attention_win_size = 3
 	
-    #fc_block_enc
-    # fc_enc_activ_fn = 'tf.nn.relu'  #None in paper
-    # fc_dec_activ_fn = 'tf.nn.relu'  #None in paper
-    # fc_conv_activ_fn = 'tf.nn.relu'  #None in paper
-    fc_enc_activ_fn = 'tf.nn.relu' #None in paper
-    fc_dec_activ_fn = 'None'  #None in paper
-    fc_conv_activ_fn = 'None'  #None in paper
-
     # data
-    data = 'datasets/LJTest'
+    data = 'datasets/LJMag'
     max_duration = 10.0#10.10 # seconds
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
+    T_y2 = 2200
 
     # training scheme
+    prepro_gpu = 8
     optim = 'adam'
     lr = 0.001
     logdir = "logs"
@@ -90,7 +80,7 @@ class Hyperparams:
     num_iterations = 500000
 
     summary_interval = 1
-    test_interval = 2
+    test_interval = 1
     checkpoint_interval = 1
 
     train_iterations = 1

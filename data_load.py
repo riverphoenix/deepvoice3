@@ -130,39 +130,6 @@ def str_to_ph(strin):
     strin = re.split('\s',strin)
     return strin
 
-def load_data(config,training=True):
-    # Load vocabulary
-    if not hp.run_cmu: 
-        char2idx, idx2char = load_vocab()
-    else:
-        char2idx, idx2char = load_vocab_cmu()    
-
-    # Parse
-    texts, _texts_test, mels, dones, mags = [], [], [], [], []
-    num_samples = 1
-    metadata = os.path.join(config.data_paths, 'metadata.csv')
-    for line in codecs.open(metadata, 'r', 'utf-8'):
-        fname, _, sent = line.strip().split("|")
-        if not hp.run_cmu: 
-            sent = text_normalize(sent) + "E" # text normalization, E: EOS
-        else:
-            sent = text_normalize_cmu(sent) + "*" # text normalization, E: EOS
-            sent = break_to_phonemes(sent)
-            sent = str_to_ph(sent)
-        if len(sent) <= hp.T_x:
-            if not hp.run_cmu: 
-                sent += "P"*(hp.T_x-len(sent)) #this was added
-            else:
-                sent.extend(['#'] * (hp.T_x-len(sent)))
-            pstring = [char2idx[char] for char in sent]  
-            texts.append(np.array(pstring, np.int32).tostring())
-            _texts_test.append(np.array(pstring,np.int32).tostring())
-            mels.append(os.path.join(config.data_paths, "mels", fname + ".npy"))
-            dones.append(os.path.join(config.data_paths, "dones", fname + ".npy"))
-            mags.append(os.path.join(config.data_paths, "mags", fname + ".npy"))
-
-    return texts, _texts_test, mels, dones, mags
-
 def invert_text(txt):
     if not hp.run_cmu: 
         char2idx, idx2char = load_vocab()
@@ -206,11 +173,48 @@ def load_test_data():
     texts = np.array(texts, np.int32)
     return texts
 
+def load_data(config,training=True):
+    # Load vocabulary
+    if not hp.run_cmu: 
+        char2idx, idx2char = load_vocab()
+    else:
+        char2idx, idx2char = load_vocab_cmu()    
+
+    # Parse
+    texts, _texts_test, mels, dones, mags, magmels, realmels, imagmels, freqs = [], [], [], [], [], [], [], [], []
+    num_samples = 1
+    metadata = os.path.join(config.data_paths, 'metadata.csv')
+    for line in codecs.open(metadata, 'r', 'utf-8'):
+        fname, _, sent = line.strip().split("|")
+        if not hp.run_cmu: 
+            sent = text_normalize(sent) + "E" # text normalization, E: EOS
+        else:
+            sent = text_normalize_cmu(sent) + "*" # text normalization, E: EOS
+            sent = break_to_phonemes(sent)
+            sent = str_to_ph(sent)
+        if len(sent) <= hp.T_x:
+            if not hp.run_cmu: 
+                sent += "P"*(hp.T_x-len(sent)) #this was added
+            else:
+                sent.extend(['#'] * (hp.T_x-len(sent)))
+            pstring = [char2idx[char] for char in sent]  
+            texts.append(np.array(pstring, np.int32).tostring())
+            _texts_test.append(np.array(pstring,np.int32).tostring())
+            mels.append(os.path.join(config.data_paths, "mels", fname + ".npy"))
+            dones.append(os.path.join(config.data_paths, "dones", fname + ".npy"))
+            mags.append(os.path.join(config.data_paths, "mags", fname + ".npy"))
+            magmels.append(os.path.join(config.data_paths, "magmels", fname + ".npy"))
+            realmels.append(os.path.join(config.data_paths, "realmels", fname + ".npy"))
+            imagmels.append(os.path.join(config.data_paths, "imagmels", fname + ".npy"))
+            freqs.append(os.path.join(config.data_paths, "freqs", fname + ".npy"))
+
+    return texts, _texts_test, mels, dones, mags, magmels, realmels, imagmels, freqs
+
 def get_batch(config):
     """Loads training data and put them in queues"""
     with tf.device('/cpu:0'):
         # Load data
-        _texts, _texts_tests, _mels, _dones, _mags = load_data(config)
+        _texts, _texts_tests, _mels, _dones, _mags, _magmels, _realmels, _imagmels, _freqs = load_data(config)
         # Calc total batch count
         num_batch = len(_texts) // hp.batch_size
          
@@ -220,11 +224,14 @@ def get_batch(config):
         mels = tf.convert_to_tensor(_mels)
         dones = tf.convert_to_tensor(_dones)
         mags = tf.convert_to_tensor(_mags)
+        magmels = tf.convert_to_tensor(_magmels)
+        realmels = tf.convert_to_tensor(_realmels)
+        imagmels = tf.convert_to_tensor(_imagmels)
+        freqs = tf.convert_to_tensor(_freqs)
 
-        zero_masks = get_zero_masks()
-         
         # Create Queues
-        text, texts_test, mel, mel3, done, mag = tf.train.slice_input_producer([texts, texts_tests, mels, mels, dones, mags], shuffle=True)
+        text, texts_test, mel, done, mag, magmel, realmel, imagmel, freq = tf.train.slice_input_producer([texts, 
+            texts_tests, mels, dones, mags, magmels, realmels, imagmels, freqs], shuffle=True)
 
         # Decoding
         text = tf.decode_raw(text, tf.int32) # (None,)
@@ -232,6 +239,10 @@ def get_batch(config):
         mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (None, n_mels)
         done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (None,)
         mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (None, 1+n_fft/2)
+        magmel = tf.py_func(lambda x:np.load(x), [magmel], tf.float32)
+        realmel = tf.py_func(lambda x:np.load(x), [realmel], tf.float32)
+        imagmel = tf.py_func(lambda x:np.load(x), [imagmel], tf.float32)
+        freq = tf.py_func(lambda x:np.load(x), [freq], tf.float32)
 
         # Padding
         text = tf.pad(text, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
@@ -239,48 +250,23 @@ def get_batch(config):
         mel = tf.pad(mel, ((0, hp.T_y), (0, 0)))[:hp.T_y] # (Ty, n_mels)
         done = tf.pad(done, ((0, hp.T_y),))[:hp.T_y] # (Ty,)
         mag = tf.pad(mag, ((0, hp.T_y), (0, 0)))[:hp.T_y] # (Ty, 1+n_fft/2)
+        magmel = tf.pad(magmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
+        realmel = tf.pad(realmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
+        imagmel = tf.pad(imagmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
+        freq = tf.pad(freq, ((0, hp.T_y2),))[:hp.T_y2]
 
         # Reduction
         mel = tf.reshape(mel, (hp.T_y//hp.r, -1)) # (Ty/r, n_mels*r)
-        if hp.run_pers:
-            mel3 = tf.multiply(mel,tf.convert_to_tensor(zero_masks[:,:,randint(0,(hp.T_y//hp.r)//hp.rwin)], np.float32))
-        else:
-            mel3 = mel
         done = done[::hp.r] # (Ty/r,)
 
         # create batch queues
-        texts, texts_tests, mels, mels2, dones, mags = tf.train.batch([text, texts_test, mel, mel3, done, mag],
-                                shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
+        texts, texts_tests, mels, dones, mags, magmels, realmels, imagmels, freqs = tf.train.batch([text, texts_test, 
+            mel, done, mag, magmel, realmel, imagmel, freq],
+                                shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2),
+                                (hp.T_y2,hp.n_mels),(hp.T_y2,hp.nbins_phase),(hp.T_y2,hp.nbins_phase),(hp.T_y2,)],
                                 num_threads=32,
                                 batch_size=hp.batch_size, 
                                 capacity=hp.batch_size*32,   
                                 dynamic_pad=False)
 
-    return texts_tests, texts, mels, mels2, dones, mags, num_batch
-
-def get_zero_masks():
-    mxval = (hp.T_y//hp.r)//hp.rwin
-    zero_masks = []
-    mms = []
-
-    for i in range(mxval+1):
-        if i == 0:        
-            for k in range(0,hp.T_y//hp.r):
-                if k == 0:
-                    mms = np.zeros(hp.n_mels*hp.r)
-                else:
-                    mms = np.vstack((mms,np.zeros(hp.n_mels*hp.r)))
-        else:
-            for k in range(0,i*hp.rwin):
-                if k == 0:
-                    mms = np.ones(hp.n_mels*hp.r)
-                else:
-                    mms = np.vstack((mms,np.ones(hp.n_mels*hp.r)))
-            for k in range(i*hp.rwin,hp.T_y//hp.r):
-                mms = np.vstack((mms,np.zeros(hp.n_mels*hp.r)))
-        if i == 0:
-            zero_masks = mms
-        else:
-            zero_masks = np.dstack((zero_masks,mms))
-
-    return tf.convert_to_tensor(np.array(zero_masks),dtype=tf.float32)
+    return texts_tests, texts, mels, dones, mags, magmels, realmels, imagmels, freqs, num_batch
