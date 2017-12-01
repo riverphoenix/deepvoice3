@@ -18,6 +18,7 @@ from data_load import load_test_data, invert_text
 from scipy.io.wavfile import write
 import random
 import magphase.magphase as mp
+import pyworld as pw
 
 def create_write_files(ret,sess,g,x,mname,cdir,samples,typeS):
 
@@ -38,7 +39,16 @@ def create_write_files(ret,sess,g,x,mname,cdir,samples,typeS):
         prev_max_attentions_li = np.array(_max_attentions_li)[:, :, j]
        
     # Get magnitude
-    mag_output, magmel_output, realmel_output, imagemel_output, freq_output = sess.run([g.mag_output, g.magmel_output, g.realmel_output, g.imagemel_output, g.freq_output], {g.decoder_output: decoder_output})
+    if hp.predict_melograph:
+        if hp.predict_world:
+            infolog.log("Global Step %d (%04d): Loss = %.8f Loss1a = %.8f Loss1b = %.8f Loss2 = %.8f Loss3a = %.8f Loss3b = %.8f Loss3c = %.8f Loss3d = %.8f Loss4a = %.8f Loss4b = %.8f Loss4c = %.8f" %(epoch,gs,losses[0],losses[1],losses[2],losses[3],losses[4],losses[5],losses[6],losses[7],losses[8],losses[9],losses[10]))
+        else:
+            mag_output, magmel_output, realmel_output, imagemel_output, freq_output, pitch_output, harmonic_output, aperiodic_output = sess.run([g.mag_output, g.magmel_output, g.realmel_output, g.imagemel_output, g.freq_output, g.pitch_output, g.harmonic_output, g.aperiodic_output], {g.decoder_output: decoder_output})
+    else:
+        if hp.predict_world:
+            mag_output, pitch_output, harmonic_output, aperiodic_output = sess.run([g.mag_output, g.pitch_output, g.harmonic_output, g.aperiodic_output], {g.decoder_output: decoder_output})
+        else:
+            mag_output = sess.run([g.mag_output], {g.decoder_output: decoder_output})
     
     z_list = random.sample(range(0,hp.batch_size),samples)
 
@@ -55,10 +65,14 @@ def create_write_files(ret,sess,g,x,mname,cdir,samples,typeS):
             write(cdir + "/{}_grif_{}.wav".format(mname, i), hp.sr, wav)
             ret.append([txt,wav,typeS+"_grif"])
 
-            # wav = mp.synthesis_from_compressed(magmel_output[i], realmel_output[i], imagemel_output[i], freq_output[i], hp.sr, hp.n_fft)
-            # write(cdir + "/{}_melgraph_{}.wav".format(mname, i), hp.sr, wav)
-            # ret.append([txt,wav,typeS+"_melgraph"])
-    
+            # if hp.predict_melograph:
+                # wav = mp.synthesis_from_compressed(magmel_output[i], realmel_output[i], imagemel_output[i], freq_output[i], hp.sr, hp.n_fft)                
+                # write(cdir + "/{}_melgraph_{}.wav".format(mname, i), hp.sr, wav)
+                # ret.append([txt,wav,typeS+"_melgraph"])
+            # if hp.predict_world:
+                # wav = pw.synthesize(pitch_output[i], harmonic_output[i], aperiodic_output[i], hp.sr, 10.0)
+                # write(cdir + "/{}_world_{}.wav".format(mname, i), hp.sr, wav)
+                # ret.append([txt,wav,typeS+"_world"])    
     return ret
 
 def synthesize_part(grp,config,gs,x_train):

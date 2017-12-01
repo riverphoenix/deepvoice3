@@ -15,6 +15,7 @@ import os
 import tqdm
 
 import magphase.magphase as mp
+import pyworld as pw
 import multiprocessing
 
 
@@ -64,29 +65,41 @@ def get_spectrograms(sound_file):
     mel = mel.T.astype(np.float32)  # (T, n_mels)
     mag = mag.T.astype(np.float32)  # (T, 1+n_fft//2)
 
-    return mel, done, mag
+    return mel, done, mag, y
 
 def prep_all_files(files):
 
     for file in tqdm.tqdm(files):
         fname = os.path.basename(file)
         
-        mel, dones, mag = get_spectrograms(file)
+        mel, dones, mag, input_x = get_spectrograms(file)
         np.save(os.path.join(mel_folder, fname.replace(".wav", ".npy")), mel)
         np.save(os.path.join(dones_folder, fname.replace(".wav", ".npy")), dones)
         np.save(os.path.join(mag_folder, fname.replace(".wav", ".npy")), mag)
         
-        magmel, realmel, imagmel, freq, _, _, _ = mp.analysis_compressed(file,fft_len=hp.n_fft,
-            nbins_mel=hp.n_mels, nbins_phase=hp.nbins_phase)
-        magmel = magmel.astype(np.float32)
-        realmel = realmel.astype(np.float32)
-        imagmel = imagmel.astype(np.float32)
-        freq = freq.astype(np.float32)
 
-        np.save(os.path.join(magmel_folder, fname.replace(".wav", ".npy")), magmel)
-        np.save(os.path.join(realmel_folder, fname.replace(".wav", ".npy")), realmel)
-        np.save(os.path.join(imagmel_folder, fname.replace(".wav", ".npy")), imagmel)
-        np.save(os.path.join(freq_folder, fname.replace(".wav", ".npy")), freq)
+        if hp.create_melograph:
+            magmel, realmel, imagmel, freq, _, _, _ = mp.analysis_compressed(file,fft_len=hp.n_fft,
+                nbins_mel=hp.n_mels, nbins_phase=hp.nbins_phase)
+            magmel = magmel.astype(np.float32)
+            realmel = realmel.astype(np.float32)
+            imagmel = imagmel.astype(np.float32)
+            freq = freq.astype(np.float32)
+
+            np.save(os.path.join(magmel_folder, fname.replace(".wav", ".npy")), magmel)
+            np.save(os.path.join(realmel_folder, fname.replace(".wav", ".npy")), realmel)
+            np.save(os.path.join(imagmel_folder, fname.replace(".wav", ".npy")), imagmel)
+            np.save(os.path.join(freq_folder, fname.replace(".wav", ".npy")), freq)
+
+        if hp.create_world:
+            pitch, harmonic, aperiodic = pw.wav2world(np.float64(input_x), hp.sr)
+            pitch = pitch.astype(np.float32)
+            harmonic = harmonic.astype(np.float32)
+            aperiodic = aperiodic.astype(np.float32)
+
+            np.save(os.path.join(pitch_folder, fname.replace(".wav", ".npy")), pitch)
+            np.save(os.path.join(harmonic_folder, fname.replace(".wav", ".npy")), harmonic)
+            np.save(os.path.join(aperiodic_folder, fname.replace(".wav", ".npy")), aperiodic)
 
 def split_list(alist, wanted_parts=1):
     length = len(alist)
@@ -104,8 +117,20 @@ if __name__ == "__main__":
     imagmel_folder = os.path.join(hp.data, 'imagmels')    
     freq_folder = os.path.join(hp.data, 'freqs')
 
-    for folder in (mel_folder, dones_folder, mag_folder,magmel_folder,realmel_folder,imagmel_folder,freq_folder):
-        if not os.path.exists(folder): os.mkdir(folder)
+    pitch_folder = os.path.join(hp.data, 'pitches')
+    harmonic_folder = os.path.join(hp.data, 'harmonics')
+    aperiodic_folder = os.path.join(hp.data, 'aperiodics')    
+
+    for folder in (mel_folder, dones_folder, mag_folder,):
+        if not os.path.exists(folder): os.mkdir(folder)    
+
+    if hp.create_melograph:
+        for folder in (magmel_folder,realmel_folder,imagmel_folder,freq_folder):
+            if not os.path.exists(folder): os.mkdir(folder)
+
+    if hp.create_world:
+        for folder in (pitch_folder, harmonic_folder, aperiodic_folder):
+            if not os.path.exists(folder): os.mkdir(folder)
 
     files = glob.glob(os.path.join(wav_folder, "*"))
     if hp.prepro_gpu > 1:

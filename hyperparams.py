@@ -38,6 +38,9 @@ class Hyperparams:
     run_cmu = True
     sinusoid = False
     normalize_model = False
+    predict_griffin = True
+    predict_melograph = True
+    predict_world = True
     dropout_rate = .2 # .05
 
     ## Enocder
@@ -60,14 +63,13 @@ class Hyperparams:
     attention_win_size = 3
 	
     # data
-    data = 'datasets/LJMag'
     max_duration = 10.0#10.10 # seconds
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
     T_y2 = 3* T_y
+    T_y3 = 3* T_y
 
     # training scheme
-    prepro_gpu = 8
     optim = 'adam'
     lr = 0.001
     logdir = "logs"
@@ -78,6 +80,14 @@ class Hyperparams:
     max_grad_norm = 100.
     max_grad_val = 5.
     num_iterations = 500000
+
+    # Prepo params
+    data = 'datasets/LJMag'
+    prepro_gpu = 8
+    create_melograph = True
+    create_world = True
+
+    # Training and Testing
 
     summary_interval = 1
     test_interval = 1

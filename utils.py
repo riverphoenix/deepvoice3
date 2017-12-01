@@ -187,6 +187,49 @@ def plot_losses_magphase(config,magmel,y3a,realmel,y3b,imagemel,y3c,freq,y3d,gs)
 
     plt.savefig('{}/losses_magphase_{}.png'.format(config.log_dir, gs), format='png')
 
+def plot_losses_world(config,pitch,y4a,harmonic,y4b,aperiodic,y4c,gs):
+    plt.figure(figsize=(10, 10))
+
+    ind = np.arange(len(pitch[0,:]))
+    width = 0.35
+
+    ax = plt.subplot(3, 2, 1)
+    ax.bar(ind, pitch[0,:], width, color='r')
+    plt.title('Predicted Pitch')
+    plt.tight_layout()
+  
+    ax = plt.subplot(3, 2, 2)
+    ax.bar(ind, y4a[0,:], width, color='r')
+    plt.title('Original Pitch')
+    plt.tight_layout()
+
+    plt.subplot(3, 2, 3)
+    librosa.display.specshow(harmonic[0,:,:],y_axis='log')
+    plt.title('Predicted harmonic')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(3, 2, 4)
+    librosa.display.specshow(y4b[0,:,:],y_axis='log')
+    plt.title('Original harmonic')
+    plt.colorbar()
+    plt.tight_layout()
+
+    ind = np.arange(len(aperiodic[0,:]))
+    width = 0.35
+
+    ax = plt.subplot(3, 2, 5)
+    ax.bar(ind, aperiodic[0,:], width, color='r')
+    plt.title('Predicted Aperiodic')
+    plt.tight_layout()
+  
+    ax = plt.subplot(3, 2, 6)
+    ax.bar(ind, y4c[0,:], width, color='r')
+    plt.title('Original Aperiodic')
+    plt.tight_layout()
+
+    plt.savefig('{}/losses_world_{}.png'.format(config.log_dir, gs), format='png')
+
 def plot_wavs(config,wavs,gs):
     plt.figure(figsize=(10, 10))
     for i in range(len(wavs)):

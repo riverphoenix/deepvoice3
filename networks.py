@@ -154,6 +154,9 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
 
     grif_input = inputs
     magphase_input = inputs_back
+    magphase_input2 = inputs_back
+    world_input = inputs_back
+    world_input2 = inputs_back
 
     with tf.variable_scope(scope, reuse=reuse):
         with tf.variable_scope("converter_conv_grif"):
@@ -169,58 +172,112 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
         with tf.variable_scope("mag_logits"):
             mag_logits = fc_block(grif_input, hp.n_fft//2 + 1, training=training) # (N, Ty, n_fft/2+1)
 
-    with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope("converter_conv_magphase"):
-            for i in range(hp.converter_layers):
-                magphase_outputs = conv_block(magphase_input,
-                                     size=hp.converter_filter_size,
-                                     rate=2**i,
-                                     padding="SAME",
-                                     training=training,
-                                     scope="converter_conv_{}".format(i))  
-                magphase_input = (magphase_input + magphase_outputs) * tf.sqrt(0.5)
+    
+    if hp.predict_melograph:
 
-        with tf.variable_scope("magphase_logits_fc"):
-            # magphase_logits_fc = fc_block(magphase_input, hp.converter_channels, activation_fn=tf.nn.relu, training=training)
-           # magphase_logits_fc = fc_block(magphase_input, hp.n_fft//2 + 1, training=training)
-            magphase_logits_fc = magphase_input
+        with tf.variable_scope(scope, reuse=reuse):
+            with tf.variable_scope("converter_conv_magphase"):
+                for i in range(hp.converter_layers):
+                    magphase_outputs = conv_block(magphase_input,
+                                         size=hp.converter_filter_size,
+                                         rate=2**i,
+                                         padding="SAME",
+                                         training=training,
+                                         scope="converter_conv_{}".format(i))  
+                    magphase_input = (magphase_input + magphase_outputs) * tf.sqrt(0.5)
+
+            with tf.variable_scope("magphase_logits_fc"):
+                # magphase_logits_fc = fc_block(magphase_input, hp.converter_channels, activation_fn=tf.nn.relu, training=training)
+               # magphase_logits_fc = fc_block(magphase_input, hp.n_fft//2 + 1, training=training)
+                magphase_logits_fc = magphase_input
+
+            ########### upsample ###############
+            magphase_logits_fc = tf.expand_dims(magphase_logits_fc, -1)
+            magphase_logits_up = tf.image.resize_nearest_neighbor(magphase_logits_fc, [hp.T_y2,magphase_logits_fc.get_shape()[2]])
+            magphase_logits_up = tf.squeeze(magphase_logits_up)
+
+            with tf.variable_scope("magphase_logits_conv"):
+              magphase_logits_conv = conv_block(magphase_logits_up,
+                                         size=hp.converter_filter_size,
+                                         rate=1,
+                                         padding="SAME",
+                                         training=training,
+                                         scope="converter_conv_magphase_{}".format(0))  
+              magphase_logits_conv = (magphase_logits_up + magphase_logits_conv) * tf.sqrt(0.5)
+
+            with tf.variable_scope("magmel_logits_fc"):
+                magmel_logits = fc_block(magphase_logits_conv, hp.n_mels, training=training)
+
+            with tf.variable_scope("realmel_logits_fc"):
+                realmel_logits = fc_block(magphase_logits_conv, hp.nbins_phase, training=training)
+
+            with tf.variable_scope("imagelmel_logits_fc"):
+                imagemel_logits = fc_block(magphase_logits_conv, hp.nbins_phase, training=training)
 
         ########### upsample ###############
-        magphase_logits_fc = tf.expand_dims(magphase_logits_fc, -1)
-        magphase_logits_up = tf.image.resize_nearest_neighbor(magphase_logits_fc, [hp.T_y2,magphase_logits_fc.get_shape()[2]])
-        magphase_logits_up = tf.squeeze(magphase_logits_up)
+        magphase_input2 = tf.expand_dims(magphase_input2, -1)
+        magphase_input2 = tf.image.resize_nearest_neighbor(magphase_input2, [hp.T_y2,magphase_input2.get_shape()[2]])
+        magphase_input2 = tf.squeeze(magphase_input2)
 
-        with tf.variable_scope("magphase_logits_conv"):
-          magphase_logits_conv = conv_block(magphase_logits_up,
-                                     size=hp.converter_filter_size,
-                                     rate=1,
-                                     padding="SAME",
-                                     training=training,
-                                     scope="converter_conv_magphase_{}".format(0))  
-          magphase_logits_conv = (magphase_logits_up + magphase_logits_conv) * tf.sqrt(0.5)
+        with tf.variable_scope("freq_logits_fc"):
+            freq_logits = fc_block(magphase_input2, 1, training=training)
+            freq_logits = tf.squeeze(freq_logits)
 
-        with tf.variable_scope("magmel_logits_fc"):
-            magmel_logits = fc_block(magphase_logits_conv, hp.n_mels, training=training)
+    if hp.predict_world:
 
-        with tf.variable_scope("realmel_logits_fc"):
-            realmel_logits = fc_block(magphase_logits_conv, hp.nbins_phase, training=training)
+        with tf.variable_scope(scope, reuse=reuse):
+            with tf.variable_scope("converter_conv_world"):
+                for i in range(hp.converter_layers):
+                    world_outputs = conv_block(world_input,
+                                         size=hp.converter_filter_size,
+                                         rate=2**i,
+                                         padding="SAME",
+                                         training=training,
+                                         scope="converter_conv_{}".format(i))  
+                    world_input = (world_input + world_outputs) * tf.sqrt(0.5)
 
-        with tf.variable_scope("imagelmel_logits_fc"):
-            imagemel_logits = fc_block(magphase_logits_conv, hp.nbins_phase, training=training)
+            with tf.variable_scope("world_logits_fc"):
+                # magphase_logits_fc = fc_block(magphase_input, hp.converter_channels, activation_fn=tf.nn.relu, training=training)
+               # magphase_logits_fc = fc_block(magphase_input, hp.n_fft//2 + 1, training=training)
+                world_logits_fc = world_input
 
-        # Try to pull this out so that it only has upsampling and FC (nothing else)
-        # with tf.variable_scope("freq_logits_fc"):
-        #     freq_logits = fc_block(magphase_logits_conv, 1, training=training)
-        #     freq_logits = tf.squeeze(freq_logits)
+            ########### upsample ###############
+            world_logits_fc = tf.expand_dims(world_logits_fc, -1)
+            world_logits_up = tf.image.resize_nearest_neighbor(world_logits_fc, [hp.T_y3,world_logits_fc.get_shape()[2]])
+            world_logits_up = tf.squeeze(world_logits_up)
 
-    ########### upsample ###############
-    inputs_back = tf.expand_dims(inputs_back, -1)
-    inputs_back = tf.image.resize_nearest_neighbor(inputs_back, [hp.T_y2,magphase_logits_fc.get_shape()[2]])
-    inputs_back = tf.squeeze(inputs_back)
+            with tf.variable_scope("world_logits_conv"):
+              world_logits_conv = conv_block(world_logits_up,
+                                         size=hp.converter_filter_size,
+                                         rate=1,
+                                         padding="SAME",
+                                         training=training,
+                                         scope="converter_conv_magphase_{}".format(0))  
+              world_logits_conv = (world_logits_up + world_logits_conv) * tf.sqrt(0.5)
 
-    # Try to pull this out so that it only has upsampling and FC (nothing else)
-    with tf.variable_scope("freq_logits_fc"):
-        freq_logits = fc_block(inputs_back, 1, training=training)
-        freq_logits = tf.squeeze(freq_logits)
+            with tf.variable_scope("harmonic_logits_fc"):
+                harmonic_logits = fc_block(world_logits_conv, hp.n_mels, training=training)
 
-    return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits
+        ########### upsample ###############
+        world_input2 = tf.expand_dims(world_input2, -1)
+        world_input2 = tf.image.resize_nearest_neighbor(world_input2, [hp.T_y3,world_input2.get_shape()[2]])
+        world_input2 = tf.squeeze(world_input2)
+
+        with tf.variable_scope("pitch_logits_fc"):
+            pitch_logits = fc_block(world_input2, 1, training=training)
+            pitch_logits = tf.squeeze(pitch_logits)
+
+        with tf.variable_scope("harmonic_logits_fc"):
+            aperiodic_logits = fc_block(world_input2, 1, training=training)
+            aperiodic_logits = tf.squeeze(aperiodic_logits)
+
+    if hp.predict_melograph:
+        if hp.predict_world:
+            return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits, pitch_logits, harmonic_logits, aperiodic_logits
+        else:
+            return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits
+    else:
+        if hp.predict_world:
+            return mag_logits, pitch_logits, harmonic_logits, aperiodic_logits
+        else:
+            return mag_logits
