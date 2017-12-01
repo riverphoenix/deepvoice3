@@ -133,6 +133,60 @@ def plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs):
 
     plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
 
+def plot_losses_magphase(config,magmel,y3a,realmel,y3b,imagemel,y3c,freq,y3d,gs):
+    plt.figure(figsize=(10, 10))
+
+    plt.subplot(4, 2, 1)
+    librosa.display.specshow(magmel[0,:,:],y_axis='log')
+    plt.title('Predicted magmel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(4, 2, 2)
+    librosa.display.specshow(y3a[0,:,:],y_axis='log')
+    plt.title('Original magmel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(4, 2, 3)
+    librosa.display.specshow(realmel[0,:,:],y_axis='log')
+    plt.title('Predicted realmel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(4, 2, 4)
+    librosa.display.specshow(y3b[0,:,:],y_axis='log')
+    plt.title('Original realmel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(4, 2, 5)
+    librosa.display.specshow(imagemel[0,:,:],y_axis='log')
+    plt.title('Predicted imagemel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(4, 2, 6)
+    librosa.display.specshow(y3c[0,:,:],y_axis='log')
+    plt.title('Original imagmel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    ind = np.arange(len(freq[0,:]))
+    width = 0.35
+
+    ax = plt.subplot(4, 2, 7)
+    ax.bar(ind, freq[0,:], width, color='r')
+    plt.title('Predicted Freq')
+    plt.tight_layout()
+  
+    ax = plt.subplot(4, 2, 8)
+    ax.bar(ind, y3d[0,:], width, color='r')
+    plt.title('Original Freq')
+    plt.tight_layout()
+
+    plt.savefig('{}/losses_magphase_{}.png'.format(config.log_dir, gs), format='png')
+
 def plot_wavs(config,wavs,gs):
     plt.figure(figsize=(10, 10))
     for i in range(len(wavs)):

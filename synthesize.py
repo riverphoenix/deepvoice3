@@ -17,11 +17,9 @@ from utils import *
 from data_load import load_test_data, invert_text
 from scipy.io.wavfile import write
 import random
+import magphase.magphase as mp
 
 def create_write_files(ret,sess,g,x,mname,cdir,samples,typeS):
-
-    # for i in range(0, len(x), hp.batch_size):
-    #     x2 = x[i:i+hp.batch_size]
 
     # Get melspectrogram
     mel_output = np.zeros((hp.batch_size, hp.T_y // hp.r, hp.n_mels * hp.r), np.float32)
@@ -40,7 +38,8 @@ def create_write_files(ret,sess,g,x,mname,cdir,samples,typeS):
         prev_max_attentions_li = np.array(_max_attentions_li)[:, :, j]
        
     # Get magnitude
-    mag_output = sess.run(g.mag_output, {g.decoder_output: decoder_output})
+    mag_output, magmel_output, realmel_output, imagemel_output, freq_output = sess.run([g.mag_output, g.magmel_output, g.realmel_output, g.imagemel_output, g.freq_output], {g.decoder_output: decoder_output})
+    
     z_list = random.sample(range(0,hp.batch_size),samples)
 
     # Generate wav files
@@ -51,9 +50,15 @@ def create_write_files(ret,sess,g,x,mname,cdir,samples,typeS):
             #audio = spectrogram2wav(np.power(10, mag) ** hp.sharpening_factor)
             txt = x[i]
             txt = invert_text(txt)
+            
             wav = spectrogram2wav(mag)
-            write(cdir + "/{}_{}.wav".format(mname, i), hp.sr, wav)
-            ret.append([txt,wav,typeS])
+            write(cdir + "/{}_grif_{}.wav".format(mname, i), hp.sr, wav)
+            ret.append([txt,wav,typeS+"_grif"])
+
+            # wav = mp.synthesis_from_compressed(magmel_output[i], realmel_output[i], imagemel_output[i], freq_output[i], hp.sr, hp.n_fft)
+            # write(cdir + "/{}_melgraph_{}.wav".format(mname, i), hp.sr, wav)
+            # ret.append([txt,wav,typeS+"_melgraph"])
+    
     return ret
 
 def synthesize_part(grp,config,gs,x_train):

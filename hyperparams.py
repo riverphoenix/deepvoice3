@@ -64,7 +64,7 @@ class Hyperparams:
     max_duration = 10.0#10.10 # seconds
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
-    T_y2 = 2200
+    T_y2 = 3* T_y
 
     # training scheme
     prepro_gpu = 8

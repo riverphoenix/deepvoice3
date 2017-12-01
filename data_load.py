@@ -254,6 +254,7 @@ def get_batch(config):
         realmel = tf.pad(realmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
         imagmel = tf.pad(imagmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
         freq = tf.pad(freq, ((0, hp.T_y2),))[:hp.T_y2]
+        freq = tf.nn.relu(freq)
 
         # Reduction
         mel = tf.reshape(mel, (hp.T_y//hp.r, -1)) # (Ty/r, n_mels*r)

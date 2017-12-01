@@ -142,7 +142,7 @@ def decoder(inputs,
 
     return mel_logits, done_output, decoder_output, alignments_li, max_attentions_li
 
-def converter(inputs, training=True, scope="converter", reuse=None):
+def converter(inputs, inputs_back, training=True, scope="converter", reuse=None):
     '''Converter
     Args:
       inputs: A 3d tensor with shape of [N, Ty, v]. Activations of the reshaped outputs of the decoder.
@@ -151,18 +151,76 @@ def converter(inputs, training=True, scope="converter", reuse=None):
       reuse: Boolean, whether to reuse the weights of a previous layer
         by the same name.
     '''
+
+    grif_input = inputs
+    magphase_input = inputs_back
+
     with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope("converter_conv"):
+        with tf.variable_scope("converter_conv_grif"):
             for i in range(hp.converter_layers):
-                outputs = conv_block(inputs,
+                outputs = conv_block(grif_input,
                                      size=hp.converter_filter_size,
                                      rate=2**i,
                                      padding="SAME",
                                      training=training,
                                      scope="converter_conv_{}".format(i))  # (N, Ty/r, d)
-                inputs = (inputs + outputs) * tf.sqrt(0.5)
+                grif_input = (grif_input + outputs) * tf.sqrt(0.5)
 
         with tf.variable_scope("mag_logits"):
-            mag_logits = fc_block(inputs, hp.n_fft//2 + 1, training=training) # (N, Ty, n_fft/2+1)
+            mag_logits = fc_block(grif_input, hp.n_fft//2 + 1, training=training) # (N, Ty, n_fft/2+1)
 
-    return mag_logits
+    with tf.variable_scope(scope, reuse=reuse):
+        with tf.variable_scope("converter_conv_magphase"):
+            for i in range(hp.converter_layers):
+                magphase_outputs = conv_block(magphase_input,
+                                     size=hp.converter_filter_size,
+                                     rate=2**i,
+                                     padding="SAME",
+                                     training=training,
+                                     scope="converter_conv_{}".format(i))  
+                magphase_input = (magphase_input + magphase_outputs) * tf.sqrt(0.5)
+
+        with tf.variable_scope("magphase_logits_fc"):
+            # magphase_logits_fc = fc_block(magphase_input, hp.converter_channels, activation_fn=tf.nn.relu, training=training)
+           # magphase_logits_fc = fc_block(magphase_input, hp.n_fft//2 + 1, training=training)
+            magphase_logits_fc = magphase_input
+
+        ########### upsample ###############
+        magphase_logits_fc = tf.expand_dims(magphase_logits_fc, -1)
+        magphase_logits_up = tf.image.resize_nearest_neighbor(magphase_logits_fc, [hp.T_y2,magphase_logits_fc.get_shape()[2]])
+        magphase_logits_up = tf.squeeze(magphase_logits_up)
+
+        with tf.variable_scope("magphase_logits_conv"):
+          magphase_logits_conv = conv_block(magphase_logits_up,
+                                     size=hp.converter_filter_size,
+                                     rate=1,
+                                     padding="SAME",
+                                     training=training,
+                                     scope="converter_conv_magphase_{}".format(0))  
+          magphase_logits_conv = (magphase_logits_up + magphase_logits_conv) * tf.sqrt(0.5)
+
+        with tf.variable_scope("magmel_logits_fc"):
+            magmel_logits = fc_block(magphase_logits_conv, hp.n_mels, training=training)
+
+        with tf.variable_scope("realmel_logits_fc"):
+            realmel_logits = fc_block(magphase_logits_conv, hp.nbins_phase, training=training)
+
+        with tf.variable_scope("imagelmel_logits_fc"):
+            imagemel_logits = fc_block(magphase_logits_conv, hp.nbins_phase, training=training)
+
+        # Try to pull this out so that it only has upsampling and FC (nothing else)
+        # with tf.variable_scope("freq_logits_fc"):
+        #     freq_logits = fc_block(magphase_logits_conv, 1, training=training)
+        #     freq_logits = tf.squeeze(freq_logits)
+
+    ########### upsample ###############
+    inputs_back = tf.expand_dims(inputs_back, -1)
+    inputs_back = tf.image.resize_nearest_neighbor(inputs_back, [hp.T_y2,magphase_logits_fc.get_shape()[2]])
+    inputs_back = tf.squeeze(inputs_back)
+
+    # Try to pull this out so that it only has upsampling and FC (nothing else)
+    with tf.variable_scope("freq_logits_fc"):
+        freq_logits = fc_block(inputs_back, 1, training=training)
+        freq_logits = tf.squeeze(freq_logits)
+
+    return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits
