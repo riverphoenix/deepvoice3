@@ -278,15 +278,16 @@ def plot_losses_world(config,pitch,y4a,harmonic,y4b,aperiodic,y4c,gs):
     plt.close('all')
 
 def plot_wavs(config,wavs,gs):
-    plt.figure(figsize=(10, 10))
-    for i in range(len(wavs)):
-        wav = wavs[i]
-        txt = str(wav[2])+':'+str(wav[0])
-        wv = wav[1]
+    if len(wavs)!=0:
+        plt.figure(figsize=(10, 10))
+        for i in range(len(wavs)):
+            wav = wavs[i]
+            txt = str(wav[2])+':'+str(wav[0])
+            wv = wav[1]
 
-        plt.subplot(len(wavs),1, i+1)
-        librosa.display.waveplot(wv, sr=hp.sr)
-        plt.title(txt)
-    plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')
+            plt.subplot(len(wavs),1, i+1)
+            librosa.display.waveplot(wv, sr=hp.sr)
+            plt.title(txt)
+        plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')
 
-    plt.close('all')
+        plt.close('all')

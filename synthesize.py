@@ -7,7 +7,7 @@ https://www.github.com/kyubyong/deepvoice3
 
 from __future__ import print_function
 
-import os
+import os, sys
 
 from hyperparams import Hyperparams as hp
 import numpy as np
@@ -68,27 +68,36 @@ def create_write_files(ret,sess,g,x,mname,cdir,typeS):
 
     if hp.predict_griffin:
         mag_output = np.squeeze(mag_output[0])
-        wav = spectrogram2wav(mag_output)
-        write(cdir + "/{}_grif.wav".format(mname), hp.sr, wav)
-        ret.append([txt,wav,typeS+"_grif"])
+        try:
+            wav = spectrogram2wav(mag_output)
+            write(cdir + "/{}_grif.wav".format(mname), hp.sr, wav)
+            ret.append([txt,wav,typeS+"_grif"])
+        except Exception:
+            sys.exc_clear()
 
     if hp.predict_melograph:
         magmel_output = np.squeeze(magmel_output[0])
         realmel_output = np.squeeze(realmel_output[0])
         imagemel_output = np.squeeze(imagemel_output[0])
         freq_output = np.squeeze(freq_output[0])
-        wav = mp.synthesis_from_compressed(magmel_output, realmel_output, imagemel_output, freq_output, hp.sr, hp.n_fft)
-        write(cdir + "/{}_melgraph.wav".format(mname), hp.sr, wav)
-        ret.append([txt,wav,typeS+"_melgraph"])
+        try:
+            wav = mp.synthesis_from_compressed(magmel_output, realmel_output, imagemel_output, freq_output, hp.sr, hp.n_fft)
+            write(cdir + "/{}_melgraph.wav".format(mname), hp.sr, wav)
+            ret.append([txt,wav,typeS+"_melgraph"])
+        except Exception:
+            sys.exc_clear()
 
     if hp.predict_world:
         pitch_output = np.squeeze(pitch_output[0])
         harmonic_output = np.squeeze(harmonic_output[0])
         aperiodic_output = np.squeeze(aperiodic_output[0])
-        wav = pw.synthesize(np.float64(pitch_output), np.float64(harmonic_output), np.float64(aperiodic_output), hp.sr,  pw.default_frame_period)
-        wav, _ = librosa.effects.trim(wav)
-        write(cdir + "/{}_world.wav".format(mname), hp.sr, wav)
-        ret.append([txt,wav,typeS+"_world"])
+        try:
+            wav = pw.synthesize(np.float64(pitch_output), np.float64(harmonic_output), np.float64(aperiodic_output), hp.sr,  pw.default_frame_period)
+            wav, _ = librosa.effects.trim(wav)
+            write(cdir + "/{}_world.wav".format(mname), hp.sr, wav)
+            ret.append([txt,wav,typeS+"_world"])
+        except Exception:
+            sys.exc_clear()
     
     return ret
 

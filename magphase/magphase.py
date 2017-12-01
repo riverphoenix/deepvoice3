@@ -560,7 +560,7 @@ def synthesis_from_compressed(m_mag_mel_log, m_real_mel, m_imag_mel, v_lf0, fs, 
     
     ns_len = v_pm[-1] + (v_pm[-1] - v_pm[-2]) 
     v_ns   = np.random.uniform(-1, 1, ns_len)     
-    
+
     # Noise Windowing:---------------------------------------------------------
     l_ns_win_funcs = [ np.hanning ] * nfrms
     vb_voi = v_f0 > 1 # case voiced  (1 is used for safety)  
@@ -571,9 +571,6 @@ def synthesis_from_compressed(m_mag_mel_log, m_real_mel, m_imag_mel, v_lf0, fs, 
 
     l_frm_ns, v_lens, v_pm_plus, v_shift_dummy, v_rights = windowing(v_ns, v_pm, win_func=l_ns_win_funcs)   # Checkear!! 
     
-    print(l_frm_ns)
-    print(v_shift)
-    print(fft_len)
     m_frm_ns  = la.frm_list_to_matrix(l_frm_ns, v_shift, fft_len)
     m_frm_ns  = np.fft.fftshift(m_frm_ns, axes=1)    
     m_ns_cmplx = la.remove_hermitian_half(np.fft.fft(m_frm_ns))
@@ -1671,12 +1668,12 @@ def define_crossfade_params(fs):
         crsf_cf = 3000
     elif fs==44100:
         crsf_cf = 4500 # TODO: test and tune this constant (for now, roughly approx.)
-        warnings.warn('Constant crsf_cf not tested nor tunned to synthesise at fs=%d Hz.' % fs)
+        #warnings.warn('Constant crsf_cf not tested nor tunned to synthesise at fs=%d Hz.' % fs)
     elif fs==22050:
         crsf_cf = 3500 # TODO: test and tune this constant (for now, roughly approx.)
-        warnings.warn('Constant crsf_cf not tested nor tunned to synthesise at fs=%d Hz.' % fs)
+        #warnings.warn('Constant crsf_cf not tested nor tunned to synthesise at fs=%d Hz.' % fs)
     else:
         crsf_cf = 3500
-        warnings.warn('Constant crsf_cf not tested nor tunned to synthesise at fs=%d Hz.' % fs)
+        #warnings.warn('Constant crsf_cf not tested nor tunned to synthesise at fs=%d Hz.' % fs)
 
     return crsf_cf, crsf_bw

@@ -132,7 +132,7 @@ def frame_shift(v_frm, shift, out_len):
     right_len = out_len - (shift + len(v_frm))
     v_frm_out = np.hstack(( np.zeros(shift) , v_frm, np.zeros(right_len)))
     return v_frm_out
-    
+
 #------------------------------------------------------------------------------
 # "Cosine window": cos_win**2 = hannnig
 # power: 1=> coswin, 2=> hanning

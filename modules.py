@@ -103,10 +103,7 @@ def conv_block(inputs,
                             dtype=tf.float32,
                             initializer=tf.zeros_initializer)
 
-        if hp.normalize_model: 
-          V_norm = tf.nn.l2_normalize(V, [0, 1])  # (width, in_dim, out_dim)
-        else:
-          V_norm = V  
+        V_norm = tf.nn.l2_normalize(V, [0, 1])  # (width, in_dim, out_dim)
         W = V_norm * g
 
         outputs = tf.nn.convolution(inputs, W, padding, dilation_rate=[rate]) + b
@@ -150,10 +147,7 @@ def fc_block(inputs,
                             initializer=tf.norm(V.initialized_value(), axis=0, keep_dims=True))
         b = tf.get_variable('b', shape=(num_units), dtype=tf.float32, initializer=tf.zeros_initializer)
 
-        if hp.normalize_model: 
-          V_norm = tf.nn.l2_normalize(V, [0]) # (in_dim, num_units)
-        else:
-          V_norm = V  
+        V_norm = tf.nn.l2_normalize(V, [0]) # (in_dim, num_units)
         W = V_norm * g
 
         outputs = tf.matmul(tf.reshape(inputs, (-1, in_dim)), W) + b # (N*T, num_units)

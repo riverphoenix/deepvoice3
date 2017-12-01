@@ -39,10 +39,9 @@ class Hyperparams:
     r = 1 # Reduction factor 4
     run_cmu = True
     sinusoid = False
-    normalize_model = False
     
-    predict_griffin = False
-    predict_melograph = False
+    predict_griffin = True
+    predict_melograph = True
     predict_world = True
     
 
@@ -85,7 +84,7 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/dummy'
+    data = 'datasets/LJMag'
     prepro_gpu = 8
     create_melograph = True
     create_world = True

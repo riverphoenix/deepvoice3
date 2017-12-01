@@ -94,8 +94,10 @@ class Graph:
                             self.mag_logits, self.magmel_logits, self.realmel_logits, self.imagemel_logits, self.freq_logits = converter(self.converter_input, self.converter_input_back ,training=training)
                         self.mag_output = tf.nn.sigmoid(self.mag_logits)
                         self.magmel_output = self.magmel_logits
-                        self.realmel_output = tf.nn.tanh(self.realmel_logits)
-                        self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
+                        self.realmel_output = self.realmel_logits
+                        self.imagemel_output = self.imagemel_logits
+                        # self.realmel_output = tf.nn.tanh(self.realmel_logits)
+                        # self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
                         self.freq_output = tf.nn.relu(self.freq_logits)
                     else:
                         if hp.predict_world:
@@ -116,8 +118,10 @@ class Graph:
                         else:
                             self.magmel_logits, self.realmel_logits, self.imagemel_logits, self.freq_logits = converter(self.converter_input, self.converter_input_back ,training=training)
                         self.magmel_output = self.magmel_logits
-                        self.realmel_output = tf.nn.tanh(self.realmel_logits)
-                        self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
+                        self.realmel_output = self.realmel_logits
+                        self.imagemel_output = self.imagemel_logits
+                        # self.realmel_output = tf.nn.tanh(self.realmel_logits)
+                        # self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
                         self.freq_output = tf.nn.relu(self.freq_logits)
                     else:
                         if hp.predict_world:
