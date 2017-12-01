@@ -571,6 +571,9 @@ def synthesis_from_compressed(m_mag_mel_log, m_real_mel, m_imag_mel, v_lf0, fs, 
 
     l_frm_ns, v_lens, v_pm_plus, v_shift_dummy, v_rights = windowing(v_ns, v_pm, win_func=l_ns_win_funcs)   # Checkear!! 
     
+    print(l_frm_ns)
+    print(v_shift)
+    print(fft_len)
     m_frm_ns  = la.frm_list_to_matrix(l_frm_ns, v_shift, fft_len)
     m_frm_ns  = np.fft.fftshift(m_frm_ns, axes=1)    
     m_ns_cmplx = la.remove_hermitian_half(np.fft.fft(m_frm_ns))

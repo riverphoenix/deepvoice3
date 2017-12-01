@@ -81,6 +81,8 @@ def plot_alignment(config,alignments, gs):
     plt.suptitle('{} Steps'.format(gs))
     plt.savefig('{}/alignment_{}.png'.format(config.log_dir, gs), format='png')
 
+    plt.close('all')
+
 def plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs):
     plt.figure(figsize=(10, 10))
 
@@ -132,6 +134,48 @@ def plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs):
     plt.tight_layout()
 
     plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
+
+    plt.close('all')
+
+def plot_losses2(config,Kmel_out,Ky1,KDone,Ky2,gs):
+    plt.figure(figsize=(10, 10))
+
+    plt.subplot(2, 2, 1)
+    librosa.display.specshow(Kmel_out[0,:,:])
+    plt.title('Predicted mel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(2, 2, 2)
+    librosa.display.specshow(Ky1[0,:,:])
+    plt.title('Original mel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    KDone = KDone[0,:,:]
+    Kd = []
+    for i in range(KDone.shape[0]):
+        if KDone[i,0] > KDone[i,1]:
+            Kd.append(0)
+        else:
+            Kd.append(1)
+
+    ind = np.arange(len(Kd))
+    width = 0.35
+
+    ax = plt.subplot(2, 2, 3)
+    ax.bar(ind, Kd, width, color='r')
+    plt.title('Predicted Dones')
+    plt.tight_layout()
+  
+    ax = plt.subplot(2, 2, 4)
+    ax.bar(ind, Ky2[0,:], width, color='r')
+    plt.title('Original Dones')
+    plt.tight_layout()
+
+    plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
+
+    plt.close('all')
 
 def plot_losses_magphase(config,magmel,y3a,realmel,y3b,imagemel,y3c,freq,y3d,gs):
     plt.figure(figsize=(10, 10))
@@ -187,6 +231,8 @@ def plot_losses_magphase(config,magmel,y3a,realmel,y3b,imagemel,y3c,freq,y3d,gs)
 
     plt.savefig('{}/losses_magphase_{}.png'.format(config.log_dir, gs), format='png')
 
+    plt.close('all')
+
 def plot_losses_world(config,pitch,y4a,harmonic,y4b,aperiodic,y4c,gs):
     plt.figure(figsize=(10, 10))
 
@@ -215,20 +261,21 @@ def plot_losses_world(config,pitch,y4a,harmonic,y4b,aperiodic,y4c,gs):
     plt.colorbar()
     plt.tight_layout()
 
-    ind = np.arange(len(aperiodic[0,:]))
-    width = 0.35
-
-    ax = plt.subplot(3, 2, 5)
-    ax.bar(ind, aperiodic[0,:], width, color='r')
+    plt.subplot(3, 2, 5)
+    librosa.display.specshow(aperiodic[0,:,:])
     plt.title('Predicted Aperiodic')
+    plt.colorbar()
     plt.tight_layout()
-  
-    ax = plt.subplot(3, 2, 6)
-    ax.bar(ind, y4c[0,:], width, color='r')
+
+    plt.subplot(3, 2, 6)
+    librosa.display.specshow(y4c[0,:,:])
     plt.title('Original Aperiodic')
+    plt.colorbar()
     plt.tight_layout()
 
     plt.savefig('{}/losses_world_{}.png'.format(config.log_dir, gs), format='png')
+
+    plt.close('all')
 
 def plot_wavs(config,wavs,gs):
     plt.figure(figsize=(10, 10))
@@ -241,3 +288,5 @@ def plot_wavs(config,wavs,gs):
         librosa.display.waveplot(wv, sr=hp.sr)
         plt.title(txt)
     plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')
+
+    plt.close('all')

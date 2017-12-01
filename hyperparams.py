@@ -26,22 +26,25 @@ class Hyperparams:
     win_length = int(sr*frame_length) # samples This is dependent on the frame_length.
     n_mels = 80 # Number of Mel banks to generate
     nbins_phase = 60
+    world_d = 513
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
     n_iter = 50 # Number of inversion iterations
     preemphasis = 0.97 # or None 0.97
     max_db = 100
     ref_db = 20
+    dropout_rate = .2 # .05
+    norm_type = "ins" # TODO: weight normalization
 
     # Model
-    norm_type = "ins" # TODO: weight normalization
     r = 1 # Reduction factor 4
     run_cmu = True
     sinusoid = False
     normalize_model = False
-    predict_griffin = True
-    predict_melograph = True
+    
+    predict_griffin = False
+    predict_melograph = False
     predict_world = True
-    dropout_rate = .2 # .05
+    
 
     ## Enocder
     if not run_cmu:
@@ -82,7 +85,7 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/LJMag'
+    data = 'datasets/dummy'
     prepro_gpu = 8
     create_melograph = True
     create_world = True
@@ -93,45 +96,5 @@ class Hyperparams:
     test_interval = 1
     checkpoint_interval = 1
 
-    train_iterations = 1
-    test_iterations = 1
-
-    #Off the shelf
-    #Global Step 25 (1350): Loss = 0.11636174 Loss1_mae = 0.06290965 Loss1_ce = 0.00366397 Loss2 = 0.04978812
-    #Noise sound
-    #Off the shelf remove normilazer from fc and conv
-    #Global Step 25 (1350): Loss = 0.10964647 Loss1_mae = 0.05855675 Loss1_ce = 0.00288924 Loss2 = 0.04820048
-    #Noise sound    
-
-    #Pers window 4
-    #Global Step 25 (1350): Loss = 0.13250279 Loss1_mae = 0.06017732 Loss1_ce = 0.01806482 Loss2 = 0.05426065
-    #Global Step 40 (2160): Loss = 0.15257074 Loss1_mae = 0.06233892 Loss1_ce = 0.03070003 Loss2 = 0.05953179
-    #Small noise
-
-    #Pers window 4 remove normilazer from fc and conv
-    #Global Step 25 (1350): Loss = 0.09492977 Loss1_mae = 0.04700819 Loss1_ce = 0.00124689 Loss2 = 0.04667469
-    #Noise but might be (one empty)
-
-    #Pers window 8 remove normilazer from fc and conv
-    #Global Step 25 (1350): Loss = 0.16058554 Loss1_mae = 0.05809595 Loss1_ce = 0.04192149 Loss2 = 0.06056810
-    #Global Step 40 (2160): Loss = 0.13492824 Loss1_mae = 0.05392413 Loss1_ce = 0.02699178 Loss2 = 0.05401233
-    #short noise, no sound on train
-
-    #Off the shelf Window 4
-    #Global Step 25 (1350): Loss = 0.16694964 Loss1_mae = 0.08454253 Loss1_ce = 0.02629825 Loss2 = 0.05610886
-    #Global Step 47 (2538): Loss = 0.15125100 Loss1_mae = 0.08238565 Loss1_ce = 0.01959107 Loss2 = 0.04927428
-    #Noise with norm and without
-
-    #Off the shelf sinusoid
-    #Global Step 25 (1350): Loss = 0.16132733 Loss1_mae = 0.08365148 Loss1_ce = 0.02483676 Loss2 = 0.05283908
-    #Pers window 1 remove normilazer from fc and conv
-    #Global Step 25 (1350): Loss = 0.14150960 Loss1_mae = 0.05494741 Loss1_ce = 0.02942976 Loss2 = 0.05713243
-
-
-
-    ##################################
-    #Test 1: Off the shelf [rwin=1, norm=True, pers=False, cmu=False]
-    #Test 2: Off the shelf [rwin=1, norm=False, pers=False, cmu=False]
-    #Test 3: Off the shelf [rwin=1, norm=False, pers=False, cmu=True]
-
-    #check input and how is fed and also on creations
+    # fix generation of magphase
+    # fix length of world

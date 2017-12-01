@@ -62,6 +62,11 @@ def decoder(inputs,
       reuse: Boolean, whether to reuse the weights of a previous layer
         by the same name.
     '''
+    if training:
+        bc_batch = hp.batch_size
+    else:
+        bc_batch = 1
+
     with tf.variable_scope(scope, reuse=reuse):
         with tf.variable_scope("decoder_prenet"):
             for i in range(hp.dec_layers):
@@ -86,13 +91,13 @@ def decoder(inputs,
                                                 zero_pad=False,
                                                 scale=True)  # (N, Tx, e)
                 else:
-                    query_pe = embed(tf.tile(tf.expand_dims(tf.range(hp.T_y // hp.r), 0), [hp.batch_size, 1]),
+                    query_pe = embed(tf.tile(tf.expand_dims(tf.range(hp.T_y // hp.r), 0), [bc_batch, 1]),
                              vocab_size=hp.T_y,
                              num_units=hp.embed_size,
                              zero_pad=False,
                              scope="query_pe")
 
-                    key_pe = embed(tf.tile(tf.expand_dims(tf.range(hp.T_x), 0), [hp.batch_size, 1]),
+                    key_pe = embed(tf.tile(tf.expand_dims(tf.range(hp.T_x), 0), [bc_batch, 1]),
                                   vocab_size=hp.T_x,
                                   num_units=hp.embed_size,
                                   zero_pad=False,
@@ -152,26 +157,32 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
         by the same name.
     '''
 
+    if training:
+        bc_batch = hp.batch_size
+    else:
+        bc_batch = 1
+
     grif_input = inputs
     magphase_input = inputs_back
     magphase_input2 = inputs_back
     world_input = inputs_back
     world_input2 = inputs_back
 
-    with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope("converter_conv_grif"):
-            for i in range(hp.converter_layers):
-                outputs = conv_block(grif_input,
-                                     size=hp.converter_filter_size,
-                                     rate=2**i,
-                                     padding="SAME",
-                                     training=training,
-                                     scope="converter_conv_{}".format(i))  # (N, Ty/r, d)
-                grif_input = (grif_input + outputs) * tf.sqrt(0.5)
+    if hp.predict_griffin:
 
-        with tf.variable_scope("mag_logits"):
-            mag_logits = fc_block(grif_input, hp.n_fft//2 + 1, training=training) # (N, Ty, n_fft/2+1)
+        with tf.variable_scope(scope, reuse=reuse):
+            with tf.variable_scope("converter_conv_grif"):
+                for i in range(hp.converter_layers):
+                    outputs = conv_block(grif_input,
+                                         size=hp.converter_filter_size,
+                                         rate=2**i,
+                                         padding="SAME",
+                                         training=training,
+                                         scope="converter_conv_{}".format(i))  # (N, Ty/r, d)
+                    grif_input = (grif_input + outputs) * tf.sqrt(0.5)
 
+            with tf.variable_scope("mag_logits"):
+                mag_logits = fc_block(grif_input, hp.n_fft//2 + 1, training=training) # (N, Ty, n_fft/2+1)
     
     if hp.predict_melograph:
 
@@ -194,7 +205,7 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
             ########### upsample ###############
             magphase_logits_fc = tf.expand_dims(magphase_logits_fc, -1)
             magphase_logits_up = tf.image.resize_nearest_neighbor(magphase_logits_fc, [hp.T_y2,magphase_logits_fc.get_shape()[2]])
-            magphase_logits_up = tf.squeeze(magphase_logits_up)
+            magphase_logits_up = tf.squeeze(magphase_logits_up,-1)
 
             with tf.variable_scope("magphase_logits_conv"):
               magphase_logits_conv = conv_block(magphase_logits_up,
@@ -217,11 +228,11 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
         ########### upsample ###############
         magphase_input2 = tf.expand_dims(magphase_input2, -1)
         magphase_input2 = tf.image.resize_nearest_neighbor(magphase_input2, [hp.T_y2,magphase_input2.get_shape()[2]])
-        magphase_input2 = tf.squeeze(magphase_input2)
+        magphase_input2 = tf.squeeze(magphase_input2,-1)
 
         with tf.variable_scope("freq_logits_fc"):
             freq_logits = fc_block(magphase_input2, 1, training=training)
-            freq_logits = tf.squeeze(freq_logits)
+            freq_logits = tf.squeeze(freq_logits,-1)
 
     if hp.predict_world:
 
@@ -244,7 +255,7 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
             ########### upsample ###############
             world_logits_fc = tf.expand_dims(world_logits_fc, -1)
             world_logits_up = tf.image.resize_nearest_neighbor(world_logits_fc, [hp.T_y3,world_logits_fc.get_shape()[2]])
-            world_logits_up = tf.squeeze(world_logits_up)
+            world_logits_up = tf.squeeze(world_logits_up,-1)
 
             with tf.variable_scope("world_logits_conv"):
               world_logits_conv = conv_block(world_logits_up,
@@ -256,28 +267,39 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
               world_logits_conv = (world_logits_up + world_logits_conv) * tf.sqrt(0.5)
 
             with tf.variable_scope("harmonic_logits_fc"):
-                harmonic_logits = fc_block(world_logits_conv, hp.n_mels, training=training)
+                harmonic_logits = fc_block(world_logits_conv, hp.world_d, training=training)
 
-        ########### upsample ###############
-        world_input2 = tf.expand_dims(world_input2, -1)
-        world_input2 = tf.image.resize_nearest_neighbor(world_input2, [hp.T_y3,world_input2.get_shape()[2]])
-        world_input2 = tf.squeeze(world_input2)
+        # ########### upsample ###############
+        # world_input2 = tf.expand_dims(world_input2, -1)
+        # world_input2 = tf.image.resize_nearest_neighbor(world_input2, [hp.T_y3,world_input2.get_shape()[2]])
+        # world_input2 = tf.squeeze(world_input2,-1)
 
-        with tf.variable_scope("pitch_logits_fc"):
-            pitch_logits = fc_block(world_input2, 1, training=training)
-            pitch_logits = tf.squeeze(pitch_logits)
+            with tf.variable_scope("pitch_logits_fc"):
+                pitch_logits = fc_block(world_logits_conv, 1, training=training)
+                pitch_logits = tf.squeeze(pitch_logits,-1)
 
-        with tf.variable_scope("harmonic_logits_fc"):
-            aperiodic_logits = fc_block(world_input2, 1, training=training)
-            aperiodic_logits = tf.squeeze(aperiodic_logits)
+            with tf.variable_scope("aperiodic_logits_fc"):
+                aperiodic_logits = fc_block(world_logits_conv, hp.world_d, training=training)            
 
-    if hp.predict_melograph:
-        if hp.predict_world:
-            return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits, pitch_logits, harmonic_logits, aperiodic_logits
+    if hp.predict_griffin:
+        if hp.predict_melograph:
+            if hp.predict_world:
+                return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits, pitch_logits, harmonic_logits, aperiodic_logits
+            else:
+                return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits
         else:
-            return mag_logits, magmel_logits, realmel_logits, imagemel_logits, freq_logits
+            if hp.predict_world:
+                return mag_logits, pitch_logits, harmonic_logits, aperiodic_logits
+            else:
+                return mag_logits
     else:
-        if hp.predict_world:
-            return mag_logits, pitch_logits, harmonic_logits, aperiodic_logits
+        if hp.predict_melograph:
+            if hp.predict_world:
+                return magmel_logits, realmel_logits, imagemel_logits, freq_logits, pitch_logits, harmonic_logits, aperiodic_logits
+            else:
+                return magmel_logits, realmel_logits, imagemel_logits, freq_logits
         else:
-            return mag_logits
+            if hp.predict_world:
+                return pitch_logits, harmonic_logits, aperiodic_logits
+            else:
+                return tf.ones(shape=(bc_batch,hp.T_y, hp.n_fft/2 +1), dtype=tf.float32)             

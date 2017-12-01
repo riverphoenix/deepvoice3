@@ -284,9 +284,7 @@ def get_batch(config):
         if hp.predict_world:
             pitch = tf.pad(pitch, ((0, hp.T_y3),))[:hp.T_y3]
             harmonic = tf.pad(harmonic, ((0, hp.T_y3), (0, 0)))[:hp.T_y3]
-            aperiodic = tf.pad(aperiodic, ((0, hp.T_y3),))[:hp.T_y3]
-            pitch = tf.nn.relu(pitch)
-            aperiodic = tf.nn.relu(aperiodic)
+            aperiodic = tf.pad(aperiodic, ((0, hp.T_y3), (0, 0)))[:hp.T_y3]
 
         # Reduction
         mel = tf.reshape(mel, (hp.T_y//hp.r, -1)) # (Ty/r, n_mels*r)
@@ -296,7 +294,7 @@ def get_batch(config):
             if hp.predict_world:
                 texts, texts_tests, mels, dones, mags, magmels, realmels, imagmels, freqs, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, done, mag, magmel, realmel, imagmel, freq, pitch, harmonic, aperiodic],
                                 shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2),
-                                (hp.T_y2,hp.n_mels),(hp.T_y2,hp.nbins_phase),(hp.T_y2,hp.nbins_phase),(hp.T_y2,),(hp.T_y3,),(hp.T_y3,hp.n_mels),(hp.T_y3,)],
+                                (hp.T_y2,hp.n_mels),(hp.T_y2,hp.nbins_phase),(hp.T_y2,hp.nbins_phase),(hp.T_y2,),(hp.T_y3,),(hp.T_y3,hp.world_d),(hp.T_y3,hp.world_d)],
                                 num_threads=32,
                                 batch_size=hp.batch_size, 
                                 capacity=hp.batch_size*32,   
@@ -314,7 +312,7 @@ def get_batch(config):
         else:
             if hp.predict_world:
                 texts, texts_tests, mels, dones, mags, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, done, mag, pitch, harmonic, aperiodic],
-                                shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2),(hp.T_y3,),(hp.T_y3,hp.n_mels),(hp.T_y3,)],
+                                shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2),(hp.T_y3,),(hp.T_y3,hp.world_d),(hp.T_y3,hp.world_d)],
                                 num_threads=32,
                                 batch_size=hp.batch_size, 
                                 capacity=hp.batch_size*32,   

@@ -35,10 +35,10 @@ def get_spectrograms(sound_file):
     y, _ = librosa.effects.trim(y)
 
     # Preemphasis
-    y = np.append(y[0], y[1:] - hp.preemphasis * y[:-1])
+    y_pre = np.append(y[0], y[1:] - hp.preemphasis * y[:-1])
 
     # stft
-    linear = librosa.stft(y=y,
+    linear = librosa.stft(y=y_pre,
                           n_fft=hp.n_fft,
                           hop_length=hp.hop_length,
                           win_length=hp.win_length)
@@ -76,7 +76,6 @@ def prep_all_files(files):
         np.save(os.path.join(mel_folder, fname.replace(".wav", ".npy")), mel)
         np.save(os.path.join(dones_folder, fname.replace(".wav", ".npy")), dones)
         np.save(os.path.join(mag_folder, fname.replace(".wav", ".npy")), mag)
-        
 
         if hp.create_melograph:
             magmel, realmel, imagmel, freq, _, _, _ = mp.analysis_compressed(file,fft_len=hp.n_fft,
