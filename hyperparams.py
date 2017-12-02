@@ -36,12 +36,12 @@ class Hyperparams:
     norm_type = "ins" # TODO: weight normalization
 
     # Model
-    r = 1 # Reduction factor 4
+    r = 4 # Reduction factor 4
     run_cmu = True
     sinusoid = False
     
     predict_griffin = True
-    predict_melograph = True
+    predict_melograph = False
     predict_world = True
     
 
@@ -97,3 +97,4 @@ class Hyperparams:
 
     # fix generation of magphase
     # fix length of world
+    # fix save checkpoint when griffin not used

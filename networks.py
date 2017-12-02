@@ -249,8 +249,8 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
 
             with tf.variable_scope("world_logits_fc"):
                 # magphase_logits_fc = fc_block(magphase_input, hp.converter_channels, activation_fn=tf.nn.relu, training=training)
-               # magphase_logits_fc = fc_block(magphase_input, hp.n_fft//2 + 1, training=training)
-                world_logits_fc = world_input
+                world_logits_fc = fc_block(world_input, hp.embed_size, training=training)
+                #world_logits_fc = world_input
 
             ########### upsample ###############
             world_logits_fc = tf.expand_dims(world_logits_fc, -1)
@@ -268,11 +268,6 @@ def converter(inputs, inputs_back, training=True, scope="converter", reuse=None)
 
             with tf.variable_scope("harmonic_logits_fc"):
                 harmonic_logits = fc_block(world_logits_conv, hp.world_d, training=training)
-
-        # ########### upsample ###############
-        # world_input2 = tf.expand_dims(world_input2, -1)
-        # world_input2 = tf.image.resize_nearest_neighbor(world_input2, [hp.T_y3,world_input2.get_shape()[2]])
-        # world_input2 = tf.squeeze(world_input2,-1)
 
             with tf.variable_scope("pitch_logits_fc"):
                 pitch_logits = fc_block(world_logits_conv, 1, training=training)

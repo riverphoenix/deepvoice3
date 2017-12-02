@@ -87,13 +87,13 @@ def plot_losses(config,Kmel_out,Ky1,KDone,Ky2,KMag,Kz,gs):
     plt.figure(figsize=(10, 10))
 
     plt.subplot(3, 2, 1)
-    librosa.display.specshow(Kmel_out[0,:,:])
+    librosa.display.specshow(Kmel_out[0,:,:], y_axis='log')
     plt.title('Predicted mel')
     plt.colorbar()
     plt.tight_layout()
 
     plt.subplot(3, 2, 2)
-    librosa.display.specshow(Ky1[0,:,:])
+    librosa.display.specshow(Ky1[0,:,:], y_axis='log')
     plt.title('Original mel')
     plt.colorbar()
     plt.tight_layout()
@@ -141,13 +141,13 @@ def plot_losses2(config,Kmel_out,Ky1,KDone,Ky2,gs):
     plt.figure(figsize=(10, 10))
 
     plt.subplot(2, 2, 1)
-    librosa.display.specshow(Kmel_out[0,:,:])
+    librosa.display.specshow(Kmel_out[0,:,:], y_axis='log')
     plt.title('Predicted mel')
     plt.colorbar()
     plt.tight_layout()
 
     plt.subplot(2, 2, 2)
-    librosa.display.specshow(Ky1[0,:,:])
+    librosa.display.specshow(Ky1[0,:,:], y_axis='log')
     plt.title('Original mel')
     plt.colorbar()
     plt.tight_layout()
@@ -262,13 +262,13 @@ def plot_losses_world(config,pitch,y4a,harmonic,y4b,aperiodic,y4c,gs):
     plt.tight_layout()
 
     plt.subplot(3, 2, 5)
-    librosa.display.specshow(aperiodic[0,:,:])
+    librosa.display.specshow(aperiodic[0,:,:],y_axis='log')
     plt.title('Predicted Aperiodic')
     plt.colorbar()
     plt.tight_layout()
 
     plt.subplot(3, 2, 6)
-    librosa.display.specshow(y4c[0,:,:])
+    librosa.display.specshow(y4c[0,:,:],y_axis='log')
     plt.title('Original Aperiodic')
     plt.colorbar()
     plt.tight_layout()

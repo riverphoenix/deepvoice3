@@ -35,16 +35,28 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                if hp.predict_melograph:
-                    if hp.predict_world:
-                        self.origx, self.x, self.y1, self.y2, self.z, self.y3a, self.y3b, self.y3c, self.y3d, self.y4a, self.y4b, self.y4c, self.num_batch = get_batch(config)
+                if hp.predict_griffin:
+                    if hp.predict_melograph:
+                        if hp.predict_world:
+                            self.origx, self.x, self.y1, self.y2, self.z, self.y3a, self.y3b, self.y3c, self.y3d, self.y4a, self.y4b, self.y4c, self.num_batch = get_batch(config)
+                        else:
+                            self.origx, self.x, self.y1, self.y2, self.z, self.y3a, self.y3b, self.y3c, self.y3d, self.num_batch = get_batch(config)
                     else:
-                        self.origx, self.x, self.y1, self.y2, self.z, self.y3a, self.y3b, self.y3c, self.y3d, self.num_batch = get_batch(config)
+                        if hp.predict_world:
+                            self.origx, self.x, self.y1, self.y2, self.z, self.y4a, self.y4b, self.y4c, self.num_batch = get_batch(config)
+                        else:
+                            self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch(config)
                 else:
-                    if hp.predict_world:
-                        self.origx, self.x, self.y1, self.y2, self.z, self.y4a, self.y4b, self.y4c, self.num_batch = get_batch(config)
+                    if hp.predict_melograph:
+                        if hp.predict_world:
+                            self.origx, self.x, self.y1, self.y2, self.y3a, self.y3b, self.y3c, self.y3d, self.y4a, self.y4b, self.y4c, self.num_batch = get_batch(config)
+                        else:
+                            self.origx, self.x, self.y1, self.y2, self.y3a, self.y3b, self.y3c, self.y3d, self.num_batch = get_batch(config)
                     else:
-                        self.origx, self.x, self.y1, self.y2, self.z, self.num_batch = get_batch(config)
+                        if hp.predict_world:
+                            self.origx, self.x, self.y1, self.y2, self.y4a, self.y4b, self.y4c, self.num_batch = get_batch(config)
+                        else:
+                            self.origx, self.x, self.y1, self.y2, self.num_batch = get_batch(config)
                 self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
 
             else: # Evaluation
@@ -94,10 +106,8 @@ class Graph:
                             self.mag_logits, self.magmel_logits, self.realmel_logits, self.imagemel_logits, self.freq_logits = converter(self.converter_input, self.converter_input_back ,training=training)
                         self.mag_output = tf.nn.sigmoid(self.mag_logits)
                         self.magmel_output = self.magmel_logits
-                        self.realmel_output = self.realmel_logits
-                        self.imagemel_output = self.imagemel_logits
-                        # self.realmel_output = tf.nn.tanh(self.realmel_logits)
-                        # self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
+                        self.realmel_output = tf.nn.tanh(self.realmel_logits)
+                        self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
                         self.freq_output = tf.nn.relu(self.freq_logits)
                     else:
                         if hp.predict_world:
@@ -118,10 +128,8 @@ class Graph:
                         else:
                             self.magmel_logits, self.realmel_logits, self.imagemel_logits, self.freq_logits = converter(self.converter_input, self.converter_input_back ,training=training)
                         self.magmel_output = self.magmel_logits
-                        self.realmel_output = self.realmel_logits
-                        self.imagemel_output = self.imagemel_logits
-                        # self.realmel_output = tf.nn.tanh(self.realmel_logits)
-                        # self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
+                        self.realmel_output = tf.nn.tanh(self.realmel_logits)
+                        self.imagemel_output = tf.nn.tanh(self.imagemel_logits)
                         self.freq_output = tf.nn.relu(self.freq_logits)
                     else:
                         if hp.predict_world:
