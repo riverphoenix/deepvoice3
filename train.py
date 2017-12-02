@@ -268,9 +268,9 @@ def main():
     g2 = Graph(config=config,training=False);
     print("Testing Graph loaded")
     with g.graph.as_default():
-        sv = tf.train.Supervisor(logdir=config.log_dir)
+        sv = tf.train.Supervisor(logdir=config.log_dir,summary_op=None,saver=None)
         with sv.managed_session() as sess:
-        
+
             #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
             if config.load_path:
                 # Restore from a checkpoint if the user requested it.
