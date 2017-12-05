@@ -70,8 +70,8 @@ class Graph:
                 # Converter
                 self.pitch_logits, self.harmonic_logits, self.aperiodic_logits = converter(self.converter_input, self.converter_input_back ,training=training)
                 self.pitch_output = tf.nn.relu(self.pitch_logits)
-                self.harmonic_output = self.harmonic_logits
-                self.aperiodic_output = self.aperiodic_logits
+                self.harmonic_output = tf.nn.relu(self.harmonic_logits)
+                self.aperiodic_output = tf.nn.relu(self.aperiodic_logits)
             
             self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
@@ -184,7 +184,7 @@ def main():
 
                 if epoch % config.checkpoint_interval == 0:
                     infolog.log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
-                    sv.saver.save(sess, checkpoint_path, global_step=g.global_step)
+                    sv.saver.save(sess, checkpoint_path, global_step=gs)
 
                 if epoch % config.test_interval == 0:
                     infolog.log('Saving audio and alignment...')
