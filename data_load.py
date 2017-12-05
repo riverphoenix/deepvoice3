@@ -181,7 +181,7 @@ def load_data(config,training=True):
         char2idx, idx2char = load_vocab_cmu()    
 
     # Parse
-    texts, _texts_test, mels, dones, mags, magmels, realmels, imagmels, freqs, pitches, harmonics, aperiodics = [], [], [], [], [], [], [], [], [], [], [], []
+    texts, _texts_test, mels, pitches, harmonics, aperiodics = [], [], [], [], [], []
     num_samples = 1
     metadata = os.path.join(config.data_paths, 'metadata.csv')
     for line in codecs.open(metadata, 'r', 'utf-8'):
@@ -201,26 +201,17 @@ def load_data(config,training=True):
             texts.append(np.array(pstring, np.int32).tostring())
             _texts_test.append(np.array(pstring,np.int32).tostring())
             mels.append(os.path.join(config.data_paths, "mels", fname + ".npy"))
-            dones.append(os.path.join(config.data_paths, "dones", fname + ".npy"))
-            if hp.predict_griffin:
-                mags.append(os.path.join(config.data_paths, "mags", fname + ".npy"))
-            if  hp.predict_melograph:
-                magmels.append(os.path.join(config.data_paths, "magmels", fname + ".npy"))
-                realmels.append(os.path.join(config.data_paths, "realmels", fname + ".npy"))
-                imagmels.append(os.path.join(config.data_paths, "imagmels", fname + ".npy"))
-                freqs.append(os.path.join(config.data_paths, "freqs", fname + ".npy"))
-            if hp.predict_world:
-                pitches.append(os.path.join(config.data_paths, "pitches", fname + ".npy"))
-                harmonics.append(os.path.join(config.data_paths, "harmonics", fname + ".npy"))
-                aperiodics.append(os.path.join(config.data_paths, "aperiodics", fname + ".npy"))
+            pitches.append(os.path.join(config.data_paths, "pitches", fname + ".npy"))
+            harmonics.append(os.path.join(config.data_paths, "harmonics", fname + ".npy"))
+            aperiodics.append(os.path.join(config.data_paths, "aperiodics", fname + ".npy"))
 
-    return texts, _texts_test, mels, dones, mags, magmels, realmels, imagmels, freqs, pitches, harmonics, aperiodics
+    return texts, _texts_test, mels, pitches, harmonics, aperiodics
 
 def get_batch(config):
     """Loads training data and put them in queues"""
     with tf.device('/cpu:0'):
         # Load data
-        _texts, _texts_tests, _mels, _dones, _mags, _magmels, _realmels, _imagmels, _freqs, _pitches, _harmonics, _aperiodics = load_data(config)
+        _texts, _texts_tests, _mels, _pitches, _harmonics, _aperiodics = load_data(config)
 
         # Calc total batch count
         num_batch = len(_texts) // hp.batch_size
@@ -229,153 +220,38 @@ def get_batch(config):
         texts = tf.convert_to_tensor(_texts)
         texts_tests = tf.convert_to_tensor(_texts_tests)
         mels = tf.convert_to_tensor(_mels)
-        dones = tf.convert_to_tensor(_dones)
-        if hp.predict_griffin:
-            mags = tf.convert_to_tensor(_mags)
-        if  hp.predict_melograph:
-            magmels = tf.convert_to_tensor(_magmels)
-            realmels = tf.convert_to_tensor(_realmels)
-            imagmels = tf.convert_to_tensor(_imagmels)
-            freqs = tf.convert_to_tensor(_freqs)
-        if hp.predict_world:
-            pitches = tf.convert_to_tensor(_pitches)
-            harmonics = tf.convert_to_tensor(_harmonics)
-            aperiodics = tf.convert_to_tensor(_aperiodics)
+        pitches = tf.convert_to_tensor(_pitches)
+        harmonics = tf.convert_to_tensor(_harmonics)
+        aperiodics = tf.convert_to_tensor(_aperiodics)
 
         # Create Queues
-        if hp.predict_griffin:
-            if hp.predict_melograph:
-                if hp.predict_world:
-                    text, texts_test, mel, done, mag, magmel, realmel, imagmel, freq, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, dones, mags, magmels, realmels, imagmels, freqs,pitches,harmonics,aperiodics], shuffle=False,capacity=hp.batch_size*32)
-                else:
-                    text, texts_test, mel, done, mag, magmel, realmel, imagmel, freq = tf.train.slice_input_producer([texts,texts_tests, mels, dones, mags, magmels, realmels, imagmels, freqs], shuffle=False,capacity=hp.batch_size*32)
-            else:
-                if hp.predict_world:
-                    text, texts_test, mel, done, mag, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, dones, mags, pitches,harmonics,aperiodics], shuffle=False,capacity=hp.batch_size*32)
-                else:
-                    text, texts_test, mel, done, mag = tf.train.slice_input_producer([texts,texts_tests, mels, dones, mags], shuffle=False,capacity=hp.batch_size*32)
-        else:
-            if hp.predict_melograph:
-                if hp.predict_world:
-                    text, texts_test, mel, done, magmel, realmel, imagmel, freq, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, dones, magmels, realmels, imagmels, freqs,pitches,harmonics,aperiodics], shuffle=False,capacity=hp.batch_size*32)
-                else:
-                    text, texts_test, mel, done, magmel, realmel, imagmel, freq = tf.train.slice_input_producer([texts,texts_tests, mels, dones, magmels, realmels, imagmels, freqs], shuffle=False,capacity=hp.batch_size*32)
-            else:
-                if hp.predict_world:
-                    text, texts_test, mel, done, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, dones, pitches,harmonics,aperiodics], shuffle=False,capacity=hp.batch_size*32)
-                else:
-                    text, texts_test, mel, done= tf.train.slice_input_producer([texts,texts_tests, mels, dones], shuffle=False,capacity=hp.batch_size*32)
+        #text, texts_test, mel, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, pitches,harmonics,aperiodics], shuffle=False,capacity=hp.batch_size*32)
+        text, texts_test, mel, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, pitches,harmonics,aperiodics], shuffle=True)
 
         # Decoding
         text = tf.decode_raw(text, tf.int32) # (None,)
         texts_test = tf.decode_raw(texts_test, tf.int32) # (None,)
         mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (None, n_mels)
-        done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (None,)
-        if hp.predict_griffin:
-            mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32) # (None, 1+n_fft/2)
-        if  hp.predict_melograph:
-            magmel = tf.py_func(lambda x:np.load(x), [magmel], tf.float32)
-            realmel = tf.py_func(lambda x:np.load(x), [realmel], tf.float32)
-            imagmel = tf.py_func(lambda x:np.load(x), [imagmel], tf.float32)
-            freq = tf.py_func(lambda x:np.load(x), [freq], tf.float32)
-        if hp.predict_world:
-            pitch = tf.py_func(lambda x:np.load(x), [pitch], tf.float32)
-            harmonic = tf.py_func(lambda x:np.load(x), [harmonic], tf.float32)
-            aperiodic = tf.py_func(lambda x:np.load(x), [aperiodic], tf.float32)
+        pitch = tf.py_func(lambda x:np.load(x), [pitch], tf.float32)
+        harmonic = tf.py_func(lambda x:np.load(x), [harmonic], tf.float32)
+        aperiodic = tf.py_func(lambda x:np.load(x), [aperiodic], tf.float32)
 
         # Padding
         text = tf.pad(text, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
         texts_test = tf.pad(texts_test, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
         mel = tf.pad(mel, ((0, hp.T_y), (0, 0)))[:hp.T_y] # (Ty, n_mels)
-        done = tf.pad(done, ((0, hp.T_y),))[:hp.T_y] # (Ty,)
-        if hp.predict_griffin:
-            mag = tf.pad(mag, ((0, hp.T_y), (0, 0)))[:hp.T_y] # (Ty, 1+n_fft/2)
-        if  hp.predict_melograph:
-            magmel = tf.pad(magmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
-            realmel = tf.pad(realmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
-            imagmel = tf.pad(imagmel, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
-            freq = tf.pad(freq, ((0, hp.T_y2),))[:hp.T_y2]
-            freq = tf.nn.relu(freq)
-        if hp.predict_world:
-            pitch = tf.pad(pitch, ((0, hp.T_y3),))[:hp.T_y3]
-            harmonic = tf.pad(harmonic, ((0, hp.T_y3), (0, 0)))[:hp.T_y3]
-            aperiodic = tf.pad(aperiodic, ((0, hp.T_y3), (0, 0)))[:hp.T_y3]
+        pitch = tf.pad(pitch, ((0, hp.T_y2),))[:hp.T_y2]
+        harmonic = tf.pad(harmonic, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
+        aperiodic = tf.pad(aperiodic, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
 
         # Reduction
         mel = tf.reshape(mel, (hp.T_y//hp.r, -1)) # (Ty/r, n_mels*r)
-        done = done[::hp.r] # (Ty/r,)
 
-        if hp.predict_griffin:
-            if hp.predict_melograph:
-                if hp.predict_world:
-                    texts, texts_tests, mels, dones, mags, magmels, realmels, imagmels, freqs, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, done, mag, magmel, realmel, imagmel, freq, pitch, harmonic, aperiodic],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2),
-                                    (hp.T_y2,hp.n_mels),(hp.T_y2,hp.nbins_phase),(hp.T_y2,hp.nbins_phase),(hp.T_y2,),(hp.T_y3,),(hp.T_y3,hp.world_d),(hp.T_y3,hp.world_d)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*16,   
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, mags, magmels, realmels, imagmels, freqs, pitches, harmonics, aperiodics, num_batch
-                else:
-                    texts, texts_tests, mels, dones, mags, magmels, realmels, imagmels, freqs = tf.train.batch([text, texts_test, mel, done, mag, magmel, realmel, imagmel, freq],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2),
-                                    (hp.T_y2,hp.n_mels),(hp.T_y2,hp.nbins_phase),(hp.T_y2,hp.nbins_phase),(hp.T_y2,)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*16,   
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, mags, magmels, realmels, imagmels, freqs, num_batch
-            else:
-                if hp.predict_world:
-                    texts, texts_tests, mels, dones, mags, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, done, mag, pitch, harmonic, aperiodic],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2),(hp.T_y3,),(hp.T_y3,hp.world_d),(hp.T_y3,hp.world_d)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*1024,
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, mags, pitches, harmonics, aperiodics, num_batch
-                else:
-                    texts, texts_tests, mels, dones, mags = tf.train.batch([text, texts_test, mel, done, mag],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,), (hp.T_y, 1+hp.n_fft//2)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*16,   
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, mags, num_batch
-        else:
-            if hp.predict_melograph:
-                if hp.predict_world:
-                    texts, texts_tests, mels, dones, magmels, realmels, imagmels, freqs, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, done, magmel, realmel, imagmel, freq, pitch, harmonic, aperiodic],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,),
-                                    (hp.T_y2,hp.n_mels),(hp.T_y2,hp.nbins_phase),(hp.T_y2,hp.nbins_phase),(hp.T_y2,),(hp.T_y3,),(hp.T_y3,hp.world_d),(hp.T_y3,hp.world_d)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*16,   
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, magmels, realmels, imagmels, freqs, pitches, harmonics, aperiodics, num_batch
-                else:
-                    texts, texts_tests, mels, dones, magmels, realmels, imagmels, freqs = tf.train.batch([text, texts_test, mel, done, magmel, realmel, imagmel, freq],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,),
-                                    (hp.T_y2,hp.n_mels),(hp.T_y2,hp.nbins_phase),(hp.T_y2,hp.nbins_phase),(hp.T_y2,)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*16,   
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, magmels, realmels, imagmels, freqs, num_batch
-            else:
-                if hp.predict_world:
-                    texts, texts_tests, mels, dones, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, done, pitch, harmonic, aperiodic],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,),(hp.T_y3,),(hp.T_y3,hp.world_d),(hp.T_y3,hp.world_d)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*16,   
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, pitches, harmonics, aperiodics, num_batch
-                else:
-                    texts, texts_tests, mels, dones = tf.train.batch([text, texts_test, mel, done],
-                                    shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y//hp.r,)],
-                                    num_threads=4,
-                                    batch_size=hp.batch_size, 
-                                    capacity=hp.batch_size*16,   
-                                    dynamic_pad=False)
-                    return texts_tests, texts, mels, dones, num_batch
+        texts, texts_tests, mels, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, pitch, harmonic, aperiodic],
+                        shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y2,),(hp.T_y2,hp.world_d),(hp.T_y2,hp.world_d)],
+                        num_threads=8,
+                        batch_size=hp.batch_size, 
+                        capacity=hp.batch_size*8,   
+                        dynamic_pad=False)
+
+        return texts_tests, texts, mels, pitches, harmonics, aperiodics, num_batch

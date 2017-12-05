@@ -25,7 +25,6 @@ class Hyperparams:
     hop_length = int(sr*frame_shift) # samples  This is dependent on the frame_shift.
     win_length = int(sr*frame_length) # samples This is dependent on the frame_length.
     n_mels = 80 # Number of Mel banks to generate
-    nbins_phase = 60
     world_d = 513
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
     n_iter = 50 # Number of inversion iterations
@@ -40,11 +39,6 @@ class Hyperparams:
     run_cmu = True
     sinusoid = False
     
-    predict_griffin = True
-    predict_melograph = False
-    predict_world = True
-    
-
     ## Enocder
     if not run_cmu:
         vocab_size = 32
@@ -69,7 +63,6 @@ class Hyperparams:
     T_x = 180 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
     T_y2 = 3* T_y
-    T_y3 = 3* T_y
 
     # training scheme
     optim = 'adam'
@@ -86,9 +79,6 @@ class Hyperparams:
     # Prepo params
     data = 'datasets/LJMag'
     prepro_gpu = 8
-    create_melograph = True
-    create_world = True
-
     # Training and Testing
 
     summary_interval = 1
