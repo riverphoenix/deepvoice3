@@ -26,6 +26,7 @@ class Hyperparams:
     win_length = int(sr*frame_length) # samples This is dependent on the frame_length.
     n_mels = 80 # Number of Mel banks to generate
     world_d = 513
+    world_period = 5.0
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
     n_iter = 50 # Number of inversion iterations
     preemphasis = 0.97 # or None 0.97
@@ -77,7 +78,7 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/LJMag'
+    data = 'datasets/LJWorld'
     prepro_gpu = 8
     # Training and Testing
 

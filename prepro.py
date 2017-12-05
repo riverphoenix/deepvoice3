@@ -60,7 +60,7 @@ def prep_all_files(files):
         mel, input_x = get_spectrograms(file)
         np.save(os.path.join(mel_folder, fname.replace(".wav", ".npy")), mel)
 
-        pitch, harmonic, aperiodic = pw.wav2world(np.float64(input_x), hp.sr)
+        pitch, harmonic, aperiodic = pw.wav2world(np.float64(input_x), hp.sr, frame_period = hp.world_period)
         pitch = pitch.astype(np.float32)
         harmonic = harmonic.astype(np.float32)
         aperiodic = aperiodic.astype(np.float32)

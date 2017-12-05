@@ -46,7 +46,7 @@ def create_write_files(ret,sess,g,x,mname,cdir,typeS):
     harmonic_output = np.squeeze(harmonic_output[0])
     aperiodic_output = np.squeeze(aperiodic_output[0])
     try:
-        wav = pw.synthesize(np.float64(pitch_output), np.float64(harmonic_output), np.float64(aperiodic_output), hp.sr,  pw.default_frame_period)
+        wav = pw.synthesize(np.float64(pitch_output), np.float64(harmonic_output), np.float64(aperiodic_output), hp.sr,frame_period=hp.world_period)
         wav, _ = librosa.effects.trim(wav)
         write(cdir + "/{}_world.wav".format(mname), hp.sr, wav)
         ret.append([txt,wav,typeS+"_world"])
