@@ -78,7 +78,7 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/LJWorld'
+    data = 'datasets/world'
     prepro_gpu = 8
     # Training and Testing
 
