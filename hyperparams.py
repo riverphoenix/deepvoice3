@@ -38,6 +38,7 @@ class Hyperparams:
     # Model
     r = 4 # Reduction factor 4
     run_cmu = True
+    normalization = False
     sinusoid = False
     
     ## Enocder
@@ -78,13 +79,13 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/world'
+    data = 'datasets/melphaseF'
     prepro_gpu = 8
     # Training and Testing
 
-    summary_interval = 1
-    test_interval = 1
-    checkpoint_interval = 1
+    summary_interval = 5
+    test_interval = 5
+    checkpoint_interval = 5
 
     # fix generation of magphase
     # fix length of world
