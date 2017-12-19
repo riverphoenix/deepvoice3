@@ -37,18 +37,16 @@ def create_write_files(ret,sess,g,x,mname,cdir,typeS):
         decoder_output[:, j, :] = _decoder_output[:, j, :]
         prev_max_attentions_li = np.array(_max_attentions_li)[:, :, j]
        
-    pitch_output, harmonic_output, aperiodic_output = sess.run([g.pitch_output, g.harmonic_output, g.aperiodic_output], {g.decoder_output: decoder_output})
+    mag_output = sess.run([g.mag_output], {g.decoder_output: decoder_output})
     
     x = np.squeeze(x, axis=0)
     txt = invert_text(x)
+    mag_output = np.squeeze(mag_output[0])
 
-    pitch_output = np.squeeze(pitch_output[0])
-    harmonic_output = np.squeeze(harmonic_output[0])
-    aperiodic_output = np.squeeze(aperiodic_output[0])
     try:
-        wav = pw.synthesize(np.float64(pitch_output), np.float64(harmonic_output), np.float64(aperiodic_output), hp.sr,frame_period=hp.world_period)
+        wav = spectrogram2wav(mag_output)
         wav, _ = librosa.effects.trim(wav)
-        write(cdir + "/{}_world.wav".format(mname), hp.sr, wav)
+        write(cdir + "/{}mag.wav".format(mname), hp.sr, wav)
         ret.append([txt,wav,typeS+"_world"])
     except Exception:
         sys.exc_clear()

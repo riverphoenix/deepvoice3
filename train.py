@@ -35,7 +35,7 @@ class Graph:
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
-                self.origx, self.x, self.y1, self.y4a, self.y4b, self.y4c, self.num_batch = get_batch(config)
+                self.origx, self.x, self.y1, self.y2, self.y3, self.num_batch = get_batch(config)
                 self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
 
             else: # Evaluation
@@ -51,37 +51,36 @@ class Graph:
                 self.keys, self.vals = encoder(self.x, training=training) # (N, Tx, e)
                 
             with tf.variable_scope("decoder"):
-                self.mel_logits, self.decoder_output, self.alignments_li, self.max_attentions_li \
+                self.mel_logits, self.done_output, self.decoder_output, self.alignments_li, self.max_attentions_li \
                     = decoder(self.decoder_input,
                              self.keys,
                              self.vals,
                              self.prev_max_attentions_li,
                              training=training)
                 self.mel_output = tf.nn.sigmoid(self.mel_logits)
+                #self.mel_output = self.mel_logits
                 
             with tf.variable_scope("converter"):
                 # Restore shape
-                self.converter_input_back = tf.reshape(self.decoder_output, (-1, hp.T_y, hp.embed_size//hp.r))
-                self.converter_input = fc_block(self.converter_input_back,
+                self.converter_input = tf.reshape(self.decoder_output, (-1, hp.T_y, hp.embed_size//hp.r))
+                self.converter_input = fc_block(self.converter_input,
                                                 hp.converter_channels,
                                                 activation_fn=tf.nn.relu,
                                                 training=training) # (N, Ty, v)
 
                 # Converter
-                self.pitch_logits, self.harmonic_logits, self.aperiodic_logits = converter(self.converter_input, self.converter_input_back ,training=training)
-                self.pitch_output = tf.nn.relu(self.pitch_logits)
-                self.harmonic_output = tf.nn.relu(self.harmonic_logits)
-                self.aperiodic_output = tf.nn.relu(self.aperiodic_logits)
+                self.mag_logits = converter(self.converter_input, training=training)
+                self.mag_output = tf.nn.sigmoid(self.mag_logits)
+                #self.mag_output = self.mag_logits
             
             self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
             if training:
                 # Loss
                 self.loss1 = tf.reduce_mean(tf.abs(self.mel_output - self.y1))
-                self.loss4a = tf.reduce_mean(tf.abs(self.pitch_output - self.y4a))
-                self.loss4b = tf.reduce_mean(tf.abs(self.harmonic_output - self.y4b))
-                self.loss4c = tf.reduce_mean(tf.abs(self.aperiodic_output - self.y4c))
-                self.loss = self.loss1 + self.loss4a + self.loss4b + self.loss4c
+                self.loss2 = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.done_output, labels=self.y2))
+                self.loss3= tf.reduce_mean(tf.abs(self.mag_output - self.y3))
+                self.loss = self.loss1 + self.loss2 + self.loss3
 
                 # Training Scheme
                 self.optimizer = tf.train.AdamOptimizer(learning_rate=hp.lr)
@@ -96,11 +95,17 @@ class Graph:
                 self.train_op = self.optimizer.apply_gradients(self.clipped, global_step=self.global_step)
                 
                 # Summary
+                tf.summary.histogram('mel_output', self.mel_output)
+                tf.summary.histogram('mel_actual', self.y1)
+                tf.summary.histogram('done_output', self.done_output)
+                tf.summary.histogram('done_actual', self.y2)
+                tf.summary.histogram('mag_output', self.mag_output)
+                tf.summary.histogram('mag_actual', self.y3)
+
                 tf.summary.scalar('loss', self.loss)
                 tf.summary.scalar('loss1', self.loss1)
-                tf.summary.scalar('loss4a', self.loss4a)
-                tf.summary.scalar('loss4b', self.loss4b)
-                tf.summary.scalar('loss4c', self.loss4c)
+                tf.summary.scalar('loss2', self.loss2)
+                tf.summary.scalar('loss3', self.loss3)
               
                 self.merged = tf.summary.merge_all()
 
@@ -167,29 +172,32 @@ def main():
             
             for epoch in range(1, 100000000):
                 if sv.should_stop(): break
+                losses = [0,0,0,0]
                 for step in tqdm(range(g.num_batch)):
                 #for step in range(g.num_batch):
-                    gs,merged,loss,loss1,loss4a,loss4b,loss4c,alginm,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1,g.loss4a,g.loss4b,g.loss4c,g.alignments_li,g.train_op])
-                    losses = [0,0,0,0,0]
-                    loss_one = [loss,loss1,loss4a,loss4b,loss4c]
+                    gs,merged,loss,loss1,loss2,loss3,alginm,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1,g.loss2,g.loss3, g.alignments_li,g.train_op])
+                    loss_one = [loss,loss1,loss2,loss3]
                     losses = [x + y for x, y in zip(losses, loss_one)]
 
                 losses = [x / g.num_batch for x in losses]
                 print("###############################################################################")
-                infolog.log("Global Step %d (%04d): Loss = %.8f Loss1 = %.8f Loss4a = %.8f Loss4b = %.8f Loss4c = %.8f" %(epoch,gs,losses[0],losses[1],losses[2],losses[3],losses[4]))
+                infolog.log("Global Step %d (%04d): Loss = %.8f Loss1 = %.8f Loss2 = %.8f Loss3 = %.8f" %(epoch,gs,losses[0],losses[1],losses[2],losses[3]))
                 print("###############################################################################")
 
                 if epoch % config.summary_interval == 0:
+                    infolog.log('Saving summary')
                     summary_writer.add_summary(merged,gs)
+                    origx, Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3 = sess.run([g.origx, g.mel_output,g.y1,g.done_output,g.y2,g.mag_output,g.y3])
+                    plot_losses(config,Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3,gs)
+
 
                 if epoch % config.checkpoint_interval == 0:
                     infolog.log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
                     sv.saver.save(sess, checkpoint_path, global_step=gs)
 
                 if epoch % config.test_interval == 0:
-                    infolog.log('Saving audio and alignment...')
-                    origx, Kmel_out,Ky1,pitch,y4a,harmonic,y4b,aperiodic,y4c = sess.run([g.origx, g.mel_output,g.y1,g.pitch_output,g.y4a,g.harmonic_output,g.y4b,g.aperiodic_output,g.y4c])
-                    plot_losses_world(config,Kmel_out,Ky1,pitch,y4a,harmonic,y4b,aperiodic,y4c,gs)
+                    infolog.log('Saving audio')
+                    origx, Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3 = sess.run([g.origx, g.mel_output,g.y1,g.done_output,g.y2,g.mag_output,g.y3])
                     wavs = synthesize.synthesize_part(g2,config,gs,origx)
                     plot_wavs(config,wavs,gs)
 

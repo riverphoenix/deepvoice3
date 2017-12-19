@@ -18,60 +18,100 @@ import librosa.display
 
 from hyperparams import Hyperparams as hp
 
+def spectrogram2wav(mag):
+    '''# Generate wave file from spectrogram'''
+    # transpose
+    mag = mag.T
 
-def plot_losses_world(config,Kmel_out,Ky1,pitch,y4a,harmonic,y4b,aperiodic,y4c,gs):
+    # de-noramlize
+    mag = (np.clip(mag, 0, 1) * hp.max_db) - hp.max_db + hp.ref_db
+
+    # to amplitude
+    mag = librosa.db_to_amplitude(mag)
+    # print(np.max(mag), np.min(mag), mag.shape)
+    # (1025, 812, 16)
+
+    # wav reconstruction
+    wav = griffin_lim(mag)
+
+    # de-preemphasis
+    wav = signal.lfilter([1], [1, -hp.preemphasis], wav)
+
+    # trim
+    wav, _ = librosa.effects.trim(wav)
+
+    return wav
+
+def griffin_lim(spectrogram):
+    '''Applies Griffin-Lim's raw.
+    '''
+    X_best = copy.deepcopy(spectrogram)
+    for i in range(hp.n_iter):
+        X_t = invert_spectrogram(X_best)
+        est = librosa.stft(X_t, hp.n_fft, hp.hop_length, win_length=hp.win_length)
+        phase = est / np.maximum(1e-8, np.abs(est))
+        X_best = spectrogram * phase
+    X_t = invert_spectrogram(X_best)
+    y = np.real(X_t)
+
+    return y
+
+def invert_spectrogram(spectrogram):
+    '''
+    spectrogram: [f, t]
+    '''
+    return librosa.istft(spectrogram, hp.hop_length, win_length=hp.win_length, window="hann")
+
+
+def plot_losses(config,Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3,gs):
     plt.figure(figsize=(10, 10))
 
-    plt.subplot(4, 2, 1)
+    plt.subplot(3, 2, 1)
     librosa.display.specshow(Kmel_out[0,:,:], y_axis='log')
     plt.title('Predicted mel')
     plt.colorbar()
     plt.tight_layout()
 
-    plt.subplot(4, 2, 2)
+    plt.subplot(3, 2, 2)
     librosa.display.specshow(Ky1[0,:,:], y_axis='log')
     plt.title('Original mel')
     plt.colorbar()
     plt.tight_layout()
 
-    ind = np.arange(len(pitch[0,:]))
+    plt.subplot(3, 2, 3)
+    librosa.display.specshow(Kmag_out[0,:,:],y_axis='log')
+    plt.title('Predicted mag')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(3, 2, 4)
+    librosa.display.specshow(Ky3[0,:,:],y_axis='log')
+    plt.title('Original mag')
+    plt.colorbar()
+    plt.tight_layout()
+
+    KDone = Kdone_out[0,:,:]
+    Kd = []
+    for i in range(KDone.shape[0]):
+        if KDone[i,0] > KDone[i,1]:
+            Kd.append(0)
+        else:
+            Kd.append(1)
+
+    ind = np.arange(len(Kd))
     width = 0.35
 
-    ax = plt.subplot(4, 2, 3)
-    ax.bar(ind, pitch[0,:], width, color='r')
-    plt.title('Predicted Pitch')
+    ax = plt.subplot(3, 2, 5)
+    ax.bar(ind, Kd, width, color='r')
+    plt.title('Predicted Dones')
     plt.tight_layout()
   
-    ax = plt.subplot(4, 2, 4)
-    ax.bar(ind, y4a[0,:], width, color='r')
-    plt.title('Original Pitch')
+    ax = plt.subplot(3, 2, 6)
+    ax.bar(ind, Ky2[0,:], width, color='r')
+    plt.title('Original Dones')
     plt.tight_layout()
 
-    plt.subplot(4, 2, 5)
-    librosa.display.specshow(harmonic[0,:,:].T,y_axis='log')
-    plt.title('Predicted harmonic')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.subplot(4, 2, 6)
-    librosa.display.specshow(y4b[0,:,:].T,y_axis='log')
-    plt.title('Original harmonic')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.subplot(4, 2, 7)
-    librosa.display.specshow(aperiodic[0,:,:].T)
-    plt.title('Predicted Aperiodic')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.subplot(4, 2, 8)
-    librosa.display.specshow(y4c[0,:,:].T)
-    plt.title('Original Aperiodic')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.savefig('{}/losses_world_{}.png'.format(config.log_dir, gs), format='png')
+    plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
 
     plt.close('all')
 

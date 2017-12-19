@@ -181,7 +181,7 @@ def load_data(config,training=True):
         char2idx, idx2char = load_vocab_cmu()    
 
     # Parse
-    texts, _texts_test, mels, pitches, harmonics, aperiodics = [], [], [], [], [], []
+    texts, _texts_test, mels, mags, dones = [], [], [], [], []
     num_samples = 1
     metadata = os.path.join(config.data_paths, 'metadata.csv')
     for line in codecs.open(metadata, 'r', 'utf-8'):
@@ -201,17 +201,16 @@ def load_data(config,training=True):
             texts.append(np.array(pstring, np.int32).tostring())
             _texts_test.append(np.array(pstring,np.int32).tostring())
             mels.append(os.path.join(config.data_paths, "mels", fname + ".npy"))
-            pitches.append(os.path.join(config.data_paths, "pitches", fname + ".npy"))
-            harmonics.append(os.path.join(config.data_paths, "harmonics", fname + ".npy"))
-            aperiodics.append(os.path.join(config.data_paths, "aperiodics", fname + ".npy"))
+            mags.append(os.path.join(config.data_paths, "mags", fname + ".npy"))
+            dones.append(os.path.join(config.data_paths, "dones", fname + ".npy"))
 
-    return texts, _texts_test, mels, pitches, harmonics, aperiodics
+    return texts, _texts_test, mels, mags, dones
 
 def get_batch(config):
     """Loads training data and put them in queues"""
     with tf.device('/cpu:0'):
         # Load data
-        _texts, _texts_tests, _mels, _pitches, _harmonics, _aperiodics = load_data(config)
+        _texts, _texts_tests, _mels, _mags, _dones = load_data(config)
 
         # Calc total batch count
         num_batch = len(_texts) // hp.batch_size
@@ -220,38 +219,36 @@ def get_batch(config):
         texts = tf.convert_to_tensor(_texts)
         texts_tests = tf.convert_to_tensor(_texts_tests)
         mels = tf.convert_to_tensor(_mels)
-        pitches = tf.convert_to_tensor(_pitches)
-        harmonics = tf.convert_to_tensor(_harmonics)
-        aperiodics = tf.convert_to_tensor(_aperiodics)
-
+        mags = tf.convert_to_tensor(_mags)
+        dones = tf.convert_to_tensor(_dones)
+        
         # Create Queues
         #text, texts_test, mel, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, pitches,harmonics,aperiodics], shuffle=False,capacity=hp.batch_size*32)
-        text, texts_test, mel, pitch, harmonic, aperiodic = tf.train.slice_input_producer([texts,texts_tests, mels, pitches,harmonics,aperiodics], shuffle=True)
+        text, texts_test, mel, mag, done = tf.train.slice_input_producer([texts,texts_tests, mels, mags, dones], shuffle=True)
 
         # Decoding
         text = tf.decode_raw(text, tf.int32) # (None,)
         texts_test = tf.decode_raw(texts_test, tf.int32) # (None,)
         mel = tf.py_func(lambda x:np.load(x), [mel], tf.float32) # (None, n_mels)
-        pitch = tf.py_func(lambda x:np.load(x), [pitch], tf.float32)
-        harmonic = tf.py_func(lambda x:np.load(x), [harmonic], tf.float32)
-        aperiodic = tf.py_func(lambda x:np.load(x), [aperiodic], tf.float32)
-
+        mag = tf.py_func(lambda x:np.load(x), [mag], tf.float32)
+        done = tf.py_func(lambda x:np.load(x), [done], tf.int32) # (None,)
+        
         # Padding
         text = tf.pad(text, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
         texts_test = tf.pad(texts_test, ((0, hp.T_x),))[:hp.T_x] # (Tx,)
         mel = tf.pad(mel, ((0, hp.T_y), (0, 0)))[:hp.T_y] # (Ty, n_mels)
-        pitch = tf.pad(pitch, ((0, hp.T_y2),))[:hp.T_y2]
-        harmonic = tf.pad(harmonic, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
-        aperiodic = tf.pad(aperiodic, ((0, hp.T_y2), (0, 0)))[:hp.T_y2]
+        done = tf.pad(done, ((0, hp.T_y),))[:hp.T_y] # (Ty,)
+        mag = tf.pad(mag, ((0, hp.T_y), (0, 0)))[:hp.T_y] # (Ty, 1+n_fft/2)
 
         # Reduction
         mel = tf.reshape(mel, (hp.T_y//hp.r, -1)) # (Ty/r, n_mels*r)
+        done = done[::hp.r] # (Ty/r,)
 
-        texts, texts_tests, mels, pitches, harmonics, aperiodics = tf.train.batch([text, texts_test, mel, pitch, harmonic, aperiodic],
-                        shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y2,),(hp.T_y2,hp.world_d),(hp.T_y2,hp.world_d)],
+        texts, texts_tests, mels, mags, dones = tf.train.batch([text, texts_test, mel, mag, done],
+                        shapes=[(hp.T_x,), (hp.T_x,), (hp.T_y//hp.r, hp.n_mels*hp.r), (hp.T_y, 1+hp.n_fft//2), (hp.T_y//hp.r,)],
                         num_threads=8,
                         batch_size=hp.batch_size, 
                         capacity=hp.batch_size*8,   
                         dynamic_pad=False)
 
-        return texts_tests, texts, mels, pitches, harmonics, aperiodics, num_batch
+        return texts_tests, texts, mels, dones, mags, num_batch
