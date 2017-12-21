@@ -19,12 +19,12 @@ class Hyperparams:
     '''Hyper parameters'''
     # signal processing
     sr = 22050 # Sampling rate.
-    n_fft = 4096 # fft points (samples)
-    frame_shift = 0.00625 # seconds 0.0125
-    frame_length = 0.025 # seconds 0.05
+    n_fft = 2048 # fft points (samples)
+    frame_shift = 0.0125 # seconds 0.0125
+    frame_length = 0.05 # seconds 0.05
     hop_length = int(sr*frame_shift) # samples  This is dependent on the frame_shift.
     win_length = int(sr*frame_length) # samples This is dependent on the frame_length.
-    n_mels = 160 # Number of Mel banks to generate
+    n_mels = 80 # Number of Mel banks to generate
     world_d = 513
     world_period = 5.0
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
@@ -38,8 +38,8 @@ class Hyperparams:
     # Model
     r = 4 # Reduction factor 4
     run_cmu = True
-    normalization = False
     sinusoid = False
+    normalization  = False
     
     ## Enocder
     if not run_cmu:
@@ -79,12 +79,15 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/melphaseFR'
-    prepro_gpu = 16
+    data = 'datasets/world'
+    prepro_gpu = 8
     # Training and Testing
 
     summary_interval = 1
     test_interval = 5
     checkpoint_interval = 5
 
-    #change r to 1 and mels to more
+    # Use characters instead of phonemes with some probability for each word (randomly per training and not always)
+    # change the prepro emphasis and clipping
+    # Use other vocoder of WaveNet
+

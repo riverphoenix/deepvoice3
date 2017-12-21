@@ -158,6 +158,7 @@ def main():
             #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
             if config.load_path:
                 # Restore from a checkpoint if the user requested it.
+                tf.reset_default_graph()
                 restore_path = get_most_recent_checkpoint(config.load_path)
                 sv.saver.restore(sess, restore_path)
                 infolog.log('Resuming from checkpoint: %s ' % (restore_path), slack=True)
