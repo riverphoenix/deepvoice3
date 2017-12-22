@@ -18,6 +18,10 @@ import unicodedata
 from num2words import num2words
 from random import randint
 import pandas as pd
+import random
+
+def keep_pho():
+    return random.random() > hp.phon_drop
 
 cmu = pd.read_csv('cmudict.dict.txt',header=None,names=['name'])
 cmu['word'], cmu['phone'] = cmu['name'].str.split(' ', 1).str
@@ -89,7 +93,10 @@ def break_to_phonemes(strin):
             wpd = word_in
         else:
             if word_in in cmu:
-                wwd = cmu[word_in].split(" ")
+                if keep_pho():
+                    wwd = cmu[word_in].split(" ")
+                else:
+                    wwd = list(word_in)
                 for kl in range(0,len(wwd)):
                     if len(wwd[kl])==3:
                         wwd[kl] = wwd[kl][0:2]

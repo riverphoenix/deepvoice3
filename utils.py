@@ -35,7 +35,7 @@ def spectrogram2wav(mag):
     wav = griffin_lim(mag)
 
     # de-preemphasis
-    wav = signal.lfilter([1], [1, -hp.preemphasis], wav)
+    #wav = signal.lfilter([1], [1, -hp.preemphasis], wav)
 
     # trim
     wav, _ = librosa.effects.trim(wav)
@@ -67,13 +67,13 @@ def plot_losses(config,Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3,gs):
     plt.figure(figsize=(10, 10))
 
     plt.subplot(3, 2, 1)
-    librosa.display.specshow(Kmel_out[0,:,:], y_axis='log')
+    librosa.display.specshow(Kmel_out[0,:,:],y_axis='log')
     plt.title('Predicted mel')
     plt.colorbar()
     plt.tight_layout()
 
     plt.subplot(3, 2, 2)
-    librosa.display.specshow(Ky1[0,:,:], y_axis='log')
+    librosa.display.specshow(Ky1[0,:,:],y_axis='log')
     plt.title('Original mel')
     plt.colorbar()
     plt.tight_layout()

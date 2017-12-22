@@ -42,6 +42,7 @@ class Hyperparams:
     normalization  = False
     
     ## Enocder
+    phon_drop = 0.2
     if not run_cmu:
         vocab_size = 32
     else:
@@ -79,7 +80,7 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/world'
+    data = 'datasets/wavenet'
     prepro_gpu = 8
     # Training and Testing
 
@@ -87,7 +88,6 @@ class Hyperparams:
     test_interval = 5
     checkpoint_interval = 5
 
-    # Use characters instead of phonemes with some probability for each word (randomly per training and not always)
     # change the prepro emphasis and clipping
     # Use other vocoder of WaveNet
 

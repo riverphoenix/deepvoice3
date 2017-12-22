@@ -26,10 +26,10 @@ def get_spectrograms(sound_file):
     y, _ = librosa.effects.trim(y)
 
     # Preemphasis
-    y_pre = np.append(y[0], y[1:] - hp.preemphasis * y[:-1])
+    #y_pre = np.append(y[0], y[1:] - hp.preemphasis * y[:-1])
 
     # stft
-    linear = librosa.stft(y=y_pre,
+    linear = librosa.stft(y=y,
                           n_fft=hp.n_fft,
                           hop_length=hp.hop_length,
                           win_length=hp.win_length)
@@ -49,8 +49,10 @@ def get_spectrograms(sound_file):
     mag = librosa.amplitude_to_db(mag)
 
     # normalize
-    mel = np.clip((mel - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
-    mag = np.clip((mag - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
+    #mel = np.clip((mel - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
+    #mag = np.clip((mag - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
+    mel = (mel - hp.ref_db + hp.max_db) / hp.max_db
+    mag = (mag - hp.ref_db + hp.max_db) / hp.max_db
 
     # Transpose
     mel = mel.T.astype(np.float32)  # (T, n_mels)
