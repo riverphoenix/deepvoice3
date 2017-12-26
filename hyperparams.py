@@ -28,33 +28,40 @@ class Hyperparams:
     world_d = 513
     world_period = 5.0
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
-    n_iter = 50 # Number of inversion iterations
+    n_iter = 200 # Number of inversion iterations
     preemphasis = 0.97 # or None 0.97
-    max_db = 100
-    ref_db = 20
-    dropout_rate = .2 # .05
+    max_db = 100 #25mel 46mag
+    ref_db = 20 #--34mel 30mag
+    dropout_rate = .05 # .05 CHANGED TO .05
     norm_type = "ins" # TODO: weight normalization
+    lowcut = 70.0
+    highcut = 7000.0
+    max_db_mel = 30
+    ref_db_mel = -80
+    max_db_mag = 50
+    ref_db_mag = -60
 
     # Model
-    r = 4 # Reduction factor 4
+    r = 1 # Reduction factor 4 CHANGED TO 1 
     run_cmu = True
     sinusoid = False
-    normalization  = False
+    normalization  = True
+    test_graph = False
     
     ## Enocder
-    phon_drop = 0.2
+    phon_drop = 0.2 # USING 0.2 PHON
     if not run_cmu:
         vocab_size = 32
     else:
         vocab_size = 53
-    embed_size = 256 # == e
-    enc_layers = 7
-    enc_filter_size = 5
-    enc_channels = 64 # == c 256
+    embed_size = 512 # == e 256 CHANGED TO 512
+    enc_layers = 7 # 7
+    enc_filter_size = 5 # 5
+    enc_channels = 64 # == c 64
     ## Decoder
-    dec_layers = 4
-    dec_filter_size = 5
-    attention_size = 128*2 # == a 128
+    dec_layers = 4 # 4
+    dec_filter_size = 5 # 5
+    attention_size = 128 # == a 256 CHANGED TO 128
     ## Converter
     converter_layers = 5*2
     converter_filter_size = 5
@@ -80,14 +87,13 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/wavenet'
-    prepro_gpu = 8
+    data = 'datasets/wavetestFR'
+    prepro_gpu = 16
     # Training and Testing
 
     summary_interval = 1
-    test_interval = 5
-    checkpoint_interval = 5
+    test_interval = 1000
+    checkpoint_interval = 1000
 
-    # change the prepro emphasis and clipping
-    # Use other vocoder of WaveNet
-
+    # Use other vocoder like Wavenet or train one externally with GRU etc layers on mel to mag network
+    # FC->CONV->FC (for decoder)

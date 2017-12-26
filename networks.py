@@ -139,13 +139,38 @@ def decoder(inputs,
 
         decoder_output = inputs
 
+        ####### New Layer #########
+        # with tf.variable_scope("decoder_rnn"):
+        #   lstm = tf.nn.rnn_cell.LSTMCell(num_units=512, state_is_tuple=True)
+        #   #cell = tf.contrib.rnn.GLSTMCell(num_units=512,number_of_groups=4)
+        #   #cell = tf.contrib.rnn.GRUCell(num_units=512)
+        #   drop = tf.contrib.rnn.DropoutWrapper(lstm, input_keep_prob = 0.8)
+        #   cell = tf.contrib.rnn.AttentionCellWrapper(drop, hp.attention_win_size)
+        #   enc_cell = tf.contrib.rnn.MultiRNNCell([cell] * 2)
+
+        #   outputs, _  = tf.nn.bidirectional_dynamic_rnn(
+        #     cell_fw=enc_cell,cell_bw=enc_cell,dtype=tf.float32,inputs=decoder_output)
+        #   output_fw, _ = outputs
+          
+        #   decoder_output = (decoder_output + output_fw) * tf.sqrt(0.5)
+          #decoder_output = output_fw
+          
+          # outputs, _  = tf.nn.bidirectional_dynamic_rnn(
+          #   cell_fw=cell,cell_bw=cell,dtype=tf.float32,inputs=decoder_output)
+          # output_fw, _ = outputs
+
+          # decoder_output = (decoder_output + output_fw) * tf.sqrt(0.5)
+
+        #######        
+
         with tf.variable_scope("mel_logits"):
             mel_logits = fc_block(decoder_output, hp.n_mels*hp.r, training=training)  # (N, Ty/r, n_mels*r)
 
-        with tf.variable_scope("done_output"):
-            done_output = fc_block(inputs, 2, training=training) # (N, Ty/r, 2)
+        # with tf.variable_scope("done_output"):
+        #     done_output = fc_block(inputs, 2, training=training) # (N, Ty/r, 2)
 
-    return mel_logits, done_output, decoder_output, alignments_li, max_attentions_li
+    #return mel_logits, done_output, decoder_output, alignments_li, max_attentions_li
+    return mel_logits, alignments_li, max_attentions_li
 
 def converter(inputs, training=True, scope="converter", reuse=None):
     '''Converter

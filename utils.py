@@ -16,15 +16,33 @@ from scipy import signal
 from matplotlib.pyplot import step, show
 import librosa.display
 
+from scipy.signal import freqz
+from scipy.signal import butter, lfilter
 from hyperparams import Hyperparams as hp
+
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
 
 def spectrogram2wav(mag):
     '''# Generate wave file from spectrogram'''
     # transpose
     mag = mag.T
 
-    # de-noramlize
+    # de-normalize
     mag = (np.clip(mag, 0, 1) * hp.max_db) - hp.max_db + hp.ref_db
+    mag = (np.clip(mag, 0, 1) * (hp.max_db_mag - hp.ref_db_mag)) + hp.ref_db_mag
+
 
     # to amplitude
     mag = librosa.db_to_amplitude(mag)
@@ -35,7 +53,9 @@ def spectrogram2wav(mag):
     wav = griffin_lim(mag)
 
     # de-preemphasis
-    #wav = signal.lfilter([1], [1, -hp.preemphasis], wav)
+    wav = signal.lfilter([1], [1, -hp.preemphasis], wav)
+
+    wav = butter_bandpass_filter(wav, hp.lowcut, hp.highcut, hp.sr, order=6)
 
     # trim
     wav, _ = librosa.effects.trim(wav)
@@ -61,6 +81,25 @@ def invert_spectrogram(spectrogram):
     spectrogram: [f, t]
     '''
     return librosa.istft(spectrogram, hp.hop_length, win_length=hp.win_length, window="hann")
+
+def plot_loss1(config,Kmel_out,Ky1,gs):
+    plt.figure(figsize=(10, 10))
+
+    plt.subplot(2, 1, 1)
+    librosa.display.specshow(Kmel_out[0,:,:].T)
+    plt.title('Predicted mel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.subplot(2, 1, 2)
+    librosa.display.specshow(Ky1[0,:,:].T)
+    plt.title('Original mel')
+    plt.colorbar()
+    plt.tight_layout()
+
+    plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
+
+    plt.close('all')
 
 
 def plot_losses(config,Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3,gs):
