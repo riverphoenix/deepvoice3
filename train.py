@@ -26,7 +26,6 @@ from tensorflow.python import debug as tf_debug
 class Graph:
     def __init__(self, config=None,training=True):
         # Load vocabulary
-        self.char2idx, self.idx2char = load_vocab()
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Data Feeding
@@ -36,54 +35,18 @@ class Graph:
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
             if training:
                 #self.origx, self.x, self.y1, self.y2, self.y3, self.num_batch = get_batch(config)
-                self.origx, self.x, self.y1, self.num_batch = get_batch(config)
-                self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
+                self.mel, self.y, self.num_batch = get_batch(config)
+                #self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
 
-            else: # Evaluation
-                self.x = tf.placeholder(tf.int32, shape=(1, hp.T_x))
-                self.y1 = tf.placeholder(tf.float32, shape=(1, hp.T_y//hp.r, hp.n_mels*hp.r))
-                self.prev_max_attentions_li = tf.placeholder(tf.int32, shape=(hp.dec_layers, 1,))
-
-			# Get decoder inputs: feed last frames only (N, Ty//r, n_mels)
-            self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
-
-            # Networks
-            with tf.variable_scope("encoder"):
-                self.keys, self.vals = encoder(self.x, training=training) # (N, Tx, e)
-                
-            with tf.variable_scope("decoder"):
-                #self.mel_logits, self.done_output, self.decoder_output, self.alignments_li, self.max_attentions_li \
-                self.mel_logits, self.alignments_li, self.max_attentions_li \
-                    = decoder(self.decoder_input,
-                             self.keys,
-                             self.vals,
-                             self.prev_max_attentions_li,
-                             training=training)
-                self.mel_output = tf.nn.sigmoid(self.mel_logits)
-                #self.mel_output = self.mel_logits
-                
-            # with tf.variable_scope("converter"):
-            #     # Restore shape
-            #     self.converter_input = tf.reshape(self.decoder_output, (-1, hp.T_y, hp.embed_size//hp.r))
-            #     self.converter_input = fc_block(self.converter_input,
-            #                                     hp.converter_channels,
-            #                                     activation_fn=tf.nn.relu,
-            #                                     training=training) # (N, Ty, v)
-
-            #     # Converter
-            #     self.mag_logits = converter(self.converter_input, training=training)
-            #     self.mag_output = tf.nn.sigmoid(self.mag_logits)
-            #     #self.mag_output = self.mag_logits
+            with tf.variable_scope("converter"):
+                # Converter
+                self.mag_logits = converter(self.mel, training=training)
+                self.mag_output = tf.nn.sigmoid(self.mag_logits)
             
             self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
             if training:
-                # Loss
-                # self.loss1 = tf.reduce_mean(tf.abs(self.mel_output - self.y1))
-                # self.loss2 = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.done_output, labels=self.y2))
-                # self.loss3= tf.reduce_mean(tf.abs(self.mag_output - self.y3))
-                # self.loss = self.loss1 + self.loss2 + self.loss3
-                self.loss = tf.reduce_mean(tf.abs(self.mel_output - self.y1))
+                self.loss = tf.reduce_mean(tf.abs(self.mag_output - self.y))
 
 
                 # Training Scheme
@@ -98,18 +61,7 @@ class Graph:
 
                 self.train_op = self.optimizer.apply_gradients(self.clipped, global_step=self.global_step)
                 
-                # Summary
-                # tf.summary.histogram('mel_output', self.mel_output)
-                # tf.summary.histogram('mel_actual', self.y1)
-                # tf.summary.histogram('done_output', self.done_output)
-                # tf.summary.histogram('done_actual', self.y2)
-                # tf.summary.histogram('mag_output', self.mag_output)
-                # tf.summary.histogram('mag_actual', self.y3)
-
                 tf.summary.scalar('loss', self.loss)
-                # tf.summary.scalar('loss1', self.loss1)
-                # tf.summary.scalar('loss2', self.loss2)
-                # tf.summary.scalar('loss3', self.loss3)
               
                 self.merged = tf.summary.merge_all()
 
@@ -183,7 +135,7 @@ def main():
                 for step in tqdm(range(g.num_batch)):
                 #for step in range(g.num_batch):
                     #gs,merged,loss,loss1,loss2,loss3,alginm,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1,g.loss2,g.loss3, g.alignments_li,g.train_op])
-                    gs,merged,loss_,alginm,_ = sess.run([g.global_step,g.merged,g.loss, g.alignments_li,g.train_op])
+                    gs,merged,loss_,_ = sess.run([g.global_step,g.merged,g.loss, g.train_op])
                     #loss_one = [loss,loss1,loss2,loss3]
                     loss = loss + loss_
                     #losses = [x + y for x, y in zip(losses, loss_one)]
@@ -196,24 +148,14 @@ def main():
                 print("###############################################################################")
 
                 if epoch % config.summary_interval == 0:
-                    #infolog.log('Saving summary')
                     summary_writer.add_summary(merged,gs)
-                    #origx, Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3 = sess.run([g.origx, g.mel_output,g.y1,g.done_output,g.y2,g.mag_output,g.y3])
-                    origx, Kmel_out,Ky1 = sess.run([g.origx, g.mel_output,g.y1])
-                    #plot_losses(config,Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3,gs)
-                    plot_loss1(config,Kmel_out,Ky1,gs)
-
-
-                if epoch % config.checkpoint_interval == 0:
-                    infolog.log('Saving checkpoint to: %s-%d' % (checkpoint_path, gs))
-                    sv.saver.save(sess, checkpoint_path, global_step=gs)
-
-                if hp.test_graph:
+                    mel, mag, y = sess.run([g.mel, g.mag_output, g.y])
+                    plot_loss(config,mag,y,gs)
+                    wav_mag, wav_y = get_wavs(config,mag,y,gs)
+                    plot_wavs(config,wav_mag,wav_y,gs)
                     if epoch % config.test_interval == 0:
-                        infolog.log('Saving audio')
-                        origx, Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3 = sess.run([g.origx, g.mel_output,g.y1,g.done_output,g.y2,g.mag_output,g.y3])
-                        wavs = synthesize.synthesize_part(g2,config,gs,origx)
-                        plot_wavs(config,wavs,gs)
+                        save_wavs(config,wav_mag,wav_y,gs)
+                        
 
                 # break
                 if gs > config.num_iterations: break

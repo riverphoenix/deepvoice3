@@ -19,6 +19,7 @@ import librosa.display
 from scipy.signal import freqz
 from scipy.signal import butter, lfilter
 from hyperparams import Hyperparams as hp
+from scipy.io.wavfile import write
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
@@ -41,7 +42,7 @@ def spectrogram2wav(mag):
 
     # de-normalize
     mag = (np.clip(mag, 0, 1) * hp.max_db) - hp.max_db + hp.ref_db
-    mag = (np.clip(mag, 0, 1) * (hp.max_db_mag - hp.ref_db_mag)) + hp.ref_db_mag
+    #mag = (np.clip(mag, 0, 1) * (hp.max_db_mag - hp.ref_db_mag)) + hp.ref_db_mag
 
 
     # to amplitude
@@ -82,89 +83,43 @@ def invert_spectrogram(spectrogram):
     '''
     return librosa.istft(spectrogram, hp.hop_length, win_length=hp.win_length, window="hann")
 
-def plot_loss1(config,Kmel_out,Ky1,gs):
+def plot_loss(config,mag,y,gs):
     plt.figure(figsize=(10, 10))
 
     plt.subplot(2, 1, 1)
-    librosa.display.specshow(Kmel_out[0,:,:].T)
-    plt.title('Predicted mel')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.subplot(2, 1, 2)
-    librosa.display.specshow(Ky1[0,:,:].T)
-    plt.title('Original mel')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
-
-    plt.close('all')
-
-
-def plot_losses(config,Kmel_out,Ky1,Kdone_out,Ky2,Kmag_out,Ky3,gs):
-    plt.figure(figsize=(10, 10))
-
-    plt.subplot(3, 2, 1)
-    librosa.display.specshow(Kmel_out[0,:,:],y_axis='log')
-    plt.title('Predicted mel')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.subplot(3, 2, 2)
-    librosa.display.specshow(Ky1[0,:,:],y_axis='log')
-    plt.title('Original mel')
-    plt.colorbar()
-    plt.tight_layout()
-
-    plt.subplot(3, 2, 3)
-    librosa.display.specshow(Kmag_out[0,:,:],y_axis='log')
+    librosa.display.specshow(mag[0,:,:].T)
     plt.title('Predicted mag')
     plt.colorbar()
     plt.tight_layout()
 
-    plt.subplot(3, 2, 4)
-    librosa.display.specshow(Ky3[0,:,:],y_axis='log')
+    plt.subplot(2, 1, 2)
+    librosa.display.specshow(y[0,:,:].T)
     plt.title('Original mag')
     plt.colorbar()
-    plt.tight_layout()
-
-    KDone = Kdone_out[0,:,:]
-    Kd = []
-    for i in range(KDone.shape[0]):
-        if KDone[i,0] > KDone[i,1]:
-            Kd.append(0)
-        else:
-            Kd.append(1)
-
-    ind = np.arange(len(Kd))
-    width = 0.35
-
-    ax = plt.subplot(3, 2, 5)
-    ax.bar(ind, Kd, width, color='r')
-    plt.title('Predicted Dones')
-    plt.tight_layout()
-  
-    ax = plt.subplot(3, 2, 6)
-    ax.bar(ind, Ky2[0,:], width, color='r')
-    plt.title('Original Dones')
     plt.tight_layout()
 
     plt.savefig('{}/losses_{}.png'.format(config.log_dir, gs), format='png')
 
     plt.close('all')
 
-def plot_wavs(config,wavs,gs):
-    if len(wavs)!=0:
-        plt.figure(figsize=(10, 10))
-        for i in range(len(wavs)):
-            wav = wavs[i]
-            txt = str(wav[2])+':'+str(wav[0])
-            wv = wav[1]
+def plot_wavs(config,wav1,wav2,gs):
+    plt.figure(figsize=(10, 10))
+    plt.subplot(2,1,1)
+    librosa.display.waveplot(wav1, sr=hp.sr)
+    plt.subplot(2,1,2)
+    librosa.display.waveplot(wav2, sr=hp.sr)
 
-            plt.subplot(len(wavs),1, i+1)
-            librosa.display.waveplot(wv, sr=hp.sr)
-            plt.title(txt)
-        plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')
+    plt.savefig('{}/wavs_{}.png'.format(config.log_dir, gs), format='png')
 
-        plt.close('all')
+    plt.close('all')
+
+def get_wavs(config,mag,y,gs):
+    mag = np.squeeze(mag[0])
+    wav_mag = spectrogram2wav(mag)
+    y = np.squeeze(y[0])
+    wav_y = spectrogram2wav(y)
+    return wav_mag, wav_y
+
+def save_wavs(config,wav_mag,wav_y,gs):
+    write(config.log_dir + "/{}_predict.wav".format(gs), hp.sr, wav_mag)
+    write(config.log_dir + "/{}_original.wav".format(gs), hp.sr, wav_y)

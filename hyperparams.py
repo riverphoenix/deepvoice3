@@ -43,7 +43,7 @@ class Hyperparams:
 
     # Model
     r = 1 # Reduction factor 4 CHANGED TO 1 
-    run_cmu = True
+    run_cmu = False
     sinusoid = False
     normalization  = True
     test_graph = False
@@ -62,9 +62,13 @@ class Hyperparams:
     dec_layers = 4 # 4
     dec_filter_size = 5 # 5
     attention_size = 128 # == a 256 CHANGED TO 128
+    
     ## Converter
-    converter_layers = 5*2
-    converter_filter_size = 5
+    converter_layers = 10  # 10
+    converter_filter_size = 5  # 5
+    
+
+
     converter_channels = 256 # == v
     attention_win_size = 3
 	
@@ -87,13 +91,13 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/wavetestFR'
+    data = 'datasets/meltomag'
     prepro_gpu = 16
     # Training and Testing
 
     summary_interval = 1
-    test_interval = 1000
+    test_interval = 2
     checkpoint_interval = 1000
 
     # Use other vocoder like Wavenet or train one externally with GRU etc layers on mel to mag network
-    # FC->CONV->FC (for decoder)
+    # Train on Multispeaker the vocoder only

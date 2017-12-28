@@ -53,11 +53,11 @@ def get_spectrograms(sound_file):
 
     # to decibel
     mel = librosa.amplitude_to_db(mel)
-    #mag = librosa.amplitude_to_db(mag)
+    mag = librosa.amplitude_to_db(mag)
 
     # normalize
     mel = np.clip((mel - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
-    #mag = np.clip((mag - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
+    mag = np.clip((mag - hp.ref_db + hp.max_db) / hp.max_db, 0, 1)
     #mel = (mel - hp.ref_db + hp.max_db) / hp.max_db
     #mag = (mag - hp.ref_db + hp.max_db) / hp.max_db
 
@@ -66,10 +66,10 @@ def get_spectrograms(sound_file):
 
     # Transpose
     mel = mel.T.astype(np.float32)  # (T, n_mels)
-    #mag = mag.T.astype(np.float32)  # (T, 1+n_fft//2)
+    mag = mag.T.astype(np.float32)  # (T, 1+n_fft//2)
 
     #return mel, done, mag
-    return mel
+    return mel, mag
 
 def prep_all_files(files):
 
@@ -77,9 +77,9 @@ def prep_all_files(files):
         fname = os.path.basename(file)
         
         #mel, done, mag = get_spectrograms(file)
-        mel = get_spectrograms(file)
+        mel, mag = get_spectrograms(file)
         np.save(os.path.join(mel_folder, fname.replace(".wav", ".npy")), mel)
-        #np.save(os.path.join(mag_folder, fname.replace(".wav", ".npy")), mag)
+        np.save(os.path.join(mag_folder, fname.replace(".wav", ".npy")), mag)
         #np.save(os.path.join(done_folder, fname.replace(".wav", ".npy")), done)
 
 def split_list(alist, wanted_parts=1):
@@ -90,12 +90,12 @@ def split_list(alist, wanted_parts=1):
 if __name__ == "__main__":
     wav_folder = os.path.join(hp.data, 'wavs')
     mel_folder = os.path.join(hp.data, 'mels')
-    #mag_folder = os.path.join(hp.data, 'mags')
+    mag_folder = os.path.join(hp.data, 'mags')
     #done_folder = os.path.join(hp.data, 'dones')
 
-    # for folder in (mel_folder, mag_folder, done_folder):
-    #     if not os.path.exists(folder): os.mkdir(folder)
-    if not os.path.exists(mel_folder): os.mkdir(mel_folder)
+    for folder in (mel_folder, mag_folder):
+        if not os.path.exists(folder): os.mkdir(folder)
+    #if not os.path.exists(mel_folder): os.mkdir(mel_folder)
 
     files = glob.glob(os.path.join(wav_folder, "*"))
     if hp.prepro_gpu > 1:
