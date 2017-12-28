@@ -67,8 +67,6 @@ class Hyperparams:
     converter_layers = 10  # 10
     converter_filter_size = 5  # 5
     
-
-
     converter_channels = 256 # == v
     attention_win_size = 3
 	
@@ -101,3 +99,25 @@ class Hyperparams:
 
     # Use other vocoder like Wavenet or train one externally with GRU etc layers on mel to mag network
     # Train on Multispeaker the vocoder only
+
+    #Encoder
+    # dropout_rate = .05 # .05 CHANGED TO .05
+    # run_cmu = True
+    # sinusoid = False
+    # normalization  = True
+    # Newmodules
+    # r = 1
+    # phon_drop = 0.2
+    # embed_size = 512
+    # attention_size = 128
+    # preemphasis = 0.97
+    # Normalize with ref_db and max_db (change for other sets)
+    # lowcut = 70.0
+    # highcut = 7000.0
+
+    # Load file -> pre-emphasis -> mel with low/high band -> Normalize
+    # Denormalize -> wav generation (griffin_lim) -> pre-emphasis -> low/high band filter (perhaps switch low/high and pre-emphasis)
+    # Find better way to normalize
+
+    #meltomag_BILTSMTOCONVADD best for decoder
+    #LSTM->BIDRECTIONALDRNN -> IN+OUT*SQR(0.5) -> BIDRECTIONALDRNN -> IN+OUT*SQR(0.5) -> CONV_BLOCK -> THEN (A +B) * SQRT(0.5) -> FC_BLOCK
