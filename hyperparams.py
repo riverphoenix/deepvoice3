@@ -34,17 +34,17 @@ class Hyperparams:
     ref_db = 20
     lowcut = 70.0
     highcut = 7000.0
-    dropout_rate = .05 # .05
+    dropout_rate = .2 # .05
     norm_type = "ins" # TODO: weight normalization
 
     # Model
-    r = 1 # Reduction factor 4
+    r = 4 # Reduction factor 4
     run_cmu = True
     sinusoid = False
     normalization  = True
     
     ## Enocder
-    phon_drop = 0.2
+    phon_drop = 0.2 #0.2
     if not run_cmu:
         vocab_size = 32
     else:
@@ -60,12 +60,12 @@ class Hyperparams:
     ## Converter
     converter_layers = 10
     converter_filter_size = 5
-    converter_channels = 256 # == v
+    converter_channels = 256 # 256  #CHANGED TO 80
     attention_win_size = 3
 	
     # data
-    max_duration = 10.0#10.10 # seconds
-    T_x = 180 #200 # characters. maximum length of text.
+    max_duration = 12.0#10.10 # seconds
+    T_x = 200 #200 # characters. maximum length of text.
     T_y = int(get_T_y(max_duration, sr, hop_length, r)) # Maximum length of sound (frames)
     T_y2 = 3* T_y
 
@@ -82,13 +82,13 @@ class Hyperparams:
     num_iterations = 500000
 
     # Prepo params
-    data = 'datasets/wavenet'
+    data = 'datasets/wavetestFR'
     prepro_gpu = 8
     # Training and Testing
 
     summary_interval = 1
-    test_interval = 5
-    checkpoint_interval = 5
+    test_interval = 2
+    checkpoint_interval = 2
 
     # change the prepro emphasis and clipping
     # Use other vocoder of WaveNet

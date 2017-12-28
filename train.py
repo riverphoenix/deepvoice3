@@ -58,7 +58,6 @@ class Graph:
                              self.prev_max_attentions_li,
                              training=training)
                 self.mel_output = tf.nn.sigmoid(self.mel_logits)
-                #self.mel_output = self.mel_logits
                 
             with tf.variable_scope("converter"):
                 # Restore shape
@@ -71,7 +70,6 @@ class Graph:
                 # Converter
                 self.mag_logits = converter(self.converter_input, training=training)
                 self.mag_output = tf.nn.sigmoid(self.mag_logits)
-                #self.mag_output = self.mag_logits
             
             self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
@@ -174,9 +172,10 @@ def main():
             for epoch in range(1, 100000000):
                 if sv.should_stop(): break
                 losses = [0,0,0,0]
-                for step in tqdm(range(g.num_batch)):
-                #for step in range(g.num_batch):
+                #for step in tqdm(range(g.num_batch)):
+                for step in range(g.num_batch):
                     gs,merged,loss,loss1,loss2,loss3,alginm,_ = sess.run([g.global_step,g.merged,g.loss,g.loss1,g.loss2,g.loss3, g.alignments_li,g.train_op])
+                    infolog.log("Step %04d: Loss = %.8f Loss1 = %.8f Loss2 = %.8f Loss3 = %.8f" %(gs,loss,loss1,loss2,loss3))
                     loss_one = [loss,loss1,loss2,loss3]
                     losses = [x + y for x, y in zip(losses, loss_one)]
 

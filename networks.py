@@ -165,7 +165,7 @@ def converter(inputs, training=True, scope="converter", reuse=None):
     with tf.variable_scope(scope, reuse=reuse):
 
       with tf.variable_scope("converter_rnn"):
-        cell = tf.nn.rnn_cell.LSTMCell(num_units=hp.n_mels)
+        cell = tf.nn.rnn_cell.LSTMCell(num_units=hp.converter_channels)
         outputs, _  = tf.nn.bidirectional_dynamic_rnn(
           cell_fw=cell,cell_bw=cell,dtype=tf.float32,inputs=inputs)
         output_fw, _ = outputs
