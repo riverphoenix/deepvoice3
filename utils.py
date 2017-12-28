@@ -18,6 +18,24 @@ import librosa.display
 
 from hyperparams import Hyperparams as hp
 
+from scipy.signal import freqz
+from scipy.signal import butter, lfilter
+from hyperparams import Hyperparams as hp
+
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+
 def spectrogram2wav(mag):
     '''# Generate wave file from spectrogram'''
     # transpose
@@ -34,8 +52,10 @@ def spectrogram2wav(mag):
     # wav reconstruction
     wav = griffin_lim(mag)
 
+    wav = butter_bandpass_filter(wav, hp.lowcut, hp.highcut, hp.sr, order=6)
+
     # de-preemphasis
-    #wav = signal.lfilter([1], [1, -hp.preemphasis], wav)
+    wav = signal.lfilter([1], [1, -hp.preemphasis], wav)
 
     # trim
     wav, _ = librosa.effects.trim(wav)

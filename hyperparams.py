@@ -28,18 +28,20 @@ class Hyperparams:
     world_d = 513
     world_period = 5.0
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
-    n_iter = 50 # Number of inversion iterations
+    n_iter = 200 # Number of inversion iterations
     preemphasis = 0.97 # or None 0.97
     max_db = 100
     ref_db = 20
-    dropout_rate = .2 # .05
+    lowcut = 70.0
+    highcut = 7000.0
+    dropout_rate = .05 # .05
     norm_type = "ins" # TODO: weight normalization
 
     # Model
-    r = 4 # Reduction factor 4
+    r = 1 # Reduction factor 4
     run_cmu = True
     sinusoid = False
-    normalization  = False
+    normalization  = True
     
     ## Enocder
     phon_drop = 0.2
@@ -47,16 +49,16 @@ class Hyperparams:
         vocab_size = 32
     else:
         vocab_size = 53
-    embed_size = 256 # == e
+    embed_size = 512 # == e
     enc_layers = 7
     enc_filter_size = 5
     enc_channels = 64 # == c 256
     ## Decoder
     dec_layers = 4
     dec_filter_size = 5
-    attention_size = 128*2 # == a 128
+    attention_size = 128 # == a 128
     ## Converter
-    converter_layers = 5*2
+    converter_layers = 10
     converter_filter_size = 5
     converter_channels = 256 # == v
     attention_win_size = 3
@@ -90,4 +92,3 @@ class Hyperparams:
 
     # change the prepro emphasis and clipping
     # Use other vocoder of WaveNet
-

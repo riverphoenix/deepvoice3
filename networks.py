@@ -163,17 +163,33 @@ def converter(inputs, training=True, scope="converter", reuse=None):
         bc_batch = 1
 
     with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope("converter_conv"):
-            for i in range(hp.converter_layers):
-                outputs = conv_block(inputs,
-                                     size=hp.converter_filter_size,
-                                     rate=2**i,
-                                     padding="SAME",
-                                     training=training,
-                                     scope="converter_conv_{}".format(i))  # (N, Ty/r, d)
-                inputs = (inputs + outputs) * tf.sqrt(0.5)
 
-        with tf.variable_scope("mag_logits"):
-            mag_logits = fc_block(inputs, hp.n_fft//2 + 1, training=training) # (N, Ty, n_fft/2+1)
+      with tf.variable_scope("converter_rnn"):
+        cell = tf.nn.rnn_cell.LSTMCell(num_units=hp.n_mels)
+        outputs, _  = tf.nn.bidirectional_dynamic_rnn(
+          cell_fw=cell,cell_bw=cell,dtype=tf.float32,inputs=inputs)
+        output_fw, _ = outputs
+        inputs = (inputs + output_fw) * tf.sqrt(0.5)
+        outputs, _  = tf.nn.bidirectional_dynamic_rnn(
+          cell_fw=cell,cell_bw=cell,dtype=tf.float32,inputs=inputs)
+        output_fw, _ = outputs
+        inputs = (inputs + output_fw) * tf.sqrt(0.5)
+        output_rnn = inputs
+
+      with tf.variable_scope("converter_conv"):
+          for i in range(hp.converter_layers):
+              outputs = conv_block(inputs,
+                                   size=hp.converter_filter_size,
+                                   rate=2**i,
+                                   padding="SAME",
+                                   training=training,
+                                   scope="converter_conv_{}".format(i))  # (N, Ty/r, d)
+              inputs = (inputs + outputs) * tf.sqrt(0.5)
+          output_conv = inputs
+    
+    inputs = (output_rnn + output_conv) * tf.sqrt(0.5)
+
+    with tf.variable_scope("mag_logits"):
+        mag_logits = fc_block(inputs, hp.n_fft//2 + 1, training=training) # (N, Ty, n_fft/2+1)
 
     return mag_logits
