@@ -29,7 +29,7 @@ class Hyperparams:
     world_period = 5.0
     sharpening_factor = 1.4 # Exponent for amplifying the predicted magnitude
     n_iter = 200 # Number of inversion iterations
-    preemphasis = 0.97 # or None 0.97
+    preemphasis = 1.5 # or None 0.97 CHANGED TO 1.5
     max_db = 100 #25mel 46mag
     ref_db = 20 #--34mel 30mag
     dropout_rate = .05 # .05 CHANGED TO .05
@@ -63,7 +63,7 @@ class Hyperparams:
     dec_filter_size = 5 # 5
     attention_size = 128 # == a 256 CHANGED TO 128
     ## Converter
-    converter_layers = 5*2
+    converter_layers = 10
     converter_filter_size = 5
     converter_channels = 256 # == v
     attention_win_size = 3
@@ -93,7 +93,7 @@ class Hyperparams:
 
     summary_interval = 1
     test_interval = 1000
-    checkpoint_interval = 1000
+    checkpoint_interval = 1
 
     # Use other vocoder like Wavenet or train one externally with GRU etc layers on mel to mag network
     # FC->CONV->FC (for decoder)

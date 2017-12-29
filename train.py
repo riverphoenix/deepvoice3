@@ -40,9 +40,9 @@ class Graph:
                 self.prev_max_attentions_li = tf.ones(shape=(hp.dec_layers, hp.batch_size), dtype=tf.int32)
 
             else: # Evaluation
-                self.x = tf.placeholder(tf.int32, shape=(1, hp.T_x))
-                self.y1 = tf.placeholder(tf.float32, shape=(1, hp.T_y//hp.r, hp.n_mels*hp.r))
-                self.prev_max_attentions_li = tf.placeholder(tf.int32, shape=(hp.dec_layers, 1,))
+                self.x = tf.placeholder(tf.int32, shape=(1, hp.T_x),name="input_x_pl")
+                self.y1 = tf.placeholder(tf.float32, shape=(1, hp.T_y//hp.r, hp.n_mels*hp.r),name="input_y1_pl")
+                self.prev_max_attentions_li = tf.placeholder(tf.int32, shape=(hp.dec_layers, 1,),name="input_prevmaxatt_pl")
 
 			# Get decoder inputs: feed last frames only (N, Ty//r, n_mels)
             self.decoder_input = tf.concat((tf.zeros_like(self.y1[:, :1, -hp.n_mels:]), self.y1[:, :-1, -hp.n_mels:]), 1)
@@ -59,7 +59,7 @@ class Graph:
                              self.vals,
                              self.prev_max_attentions_li,
                              training=training)
-                self.mel_output = tf.nn.sigmoid(self.mel_logits)
+                self.mel_output = tf.nn.sigmoid(self.mel_logits,name="output_mel")
                 #self.mel_output = self.mel_logits
                 
             # with tf.variable_scope("converter"):
@@ -154,7 +154,7 @@ def main():
     g = Graph(config=config);
     print("Training Graph loaded")
     if hp.test_graph:
-        g2 = Graph(config=config,training=False);
+        g2 = Graph(config=config,training=False)
         print("Testing Graph loaded")
     with g.graph.as_default():
         sv = tf.train.Supervisor(logdir=config.log_dir)
@@ -163,7 +163,6 @@ def main():
             #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
             if config.load_path:
                 # Restore from a checkpoint if the user requested it.
-                tf.reset_default_graph()
                 restore_path = get_most_recent_checkpoint(config.load_path)
                 sv.saver.restore(sess, restore_path)
                 infolog.log('Resuming from checkpoint: %s ' % (restore_path), slack=True)
