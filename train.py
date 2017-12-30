@@ -33,6 +33,7 @@ class Graph:
             ## y1: Reduced melspectrogram. (N, T_y//r, n_mels*r) float32
             ## y2: Reduced dones. (N, T_y//r,) int32
             ## z: Magnitude. (N, T_y, n_fft//2+1) float32
+            self.mel = tf.placeholder(tf.float32, shape=(hp.batch_size, hp.T_y//hp.r, hp.n_mels*hp.r),name="mel_inp_pl")
             if training:
                 #self.origx, self.x, self.y1, self.y2, self.y3, self.num_batch = get_batch(config)
                 self.mel, self.y, self.num_batch = get_batch(config)
@@ -41,7 +42,7 @@ class Graph:
             with tf.variable_scope("converter"):
                 # Converter
                 self.mag_logits = converter(self.mel, training=training)
-                self.mag_output = tf.nn.sigmoid(self.mag_logits)
+                self.mag_output = tf.nn.sigmoid(self.mag_logits,name="mag_out")
             
             self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
@@ -106,7 +107,7 @@ def main():
     g = Graph(config=config);
     print("Training Graph loaded")
     if hp.test_graph:
-        g2 = Graph(config=config,training=False);
+        g2 = Graph(config=config,training=False)
         print("Testing Graph loaded")
     with g.graph.as_default():
         sv = tf.train.Supervisor(logdir=config.log_dir)
